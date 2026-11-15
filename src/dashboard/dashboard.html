@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en" data-elder="false">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dashboard - Prevenza: Scam Guard</title>
+  <link rel="stylesheet" href="../shared/theme.css">
+  <link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+  <header class="page-head">
+    <div class="brand">
+      <span data-mascot="52" aria-hidden="true"></span>
+      <div>
+        <div class="brand-name">Prevenza: Scam Guard</div>
+        <div class="brand-sub">Dashboard</div>
+      </div>
+    </div>
+    <nav class="nav" aria-label="Pages">
+      <a class="btn" href="../settings/settings.html">Settings</a>
+    </nav>
+  </header>
+
+  <main class="wrap">
+    <section class="hero card" aria-labelledby="hero-h">
+      <div class="hero-text">
+        <h1 id="hero-h">Pause. Let's check first.</h1>
+        <p class="muted" id="hero-sub">Loading...</p>
+      </div>
+      <span class="pill pill-unknown" id="overall-pill">Not scanned yet</span>
+    </section>
+
+    <section class="stats" aria-label="Summary">
+      <article class="stat card"><h3>Protection</h3><p class="num" id="stat-protection">-</p><p class="muted small">Master switch</p></article>
+      <article class="stat card"><h3>Pages watched</h3><p class="num" id="stat-pages">0</p><p class="muted small">A simple count. No addresses are saved.</p></article>
+      <article class="stat card"><h3>Warnings shown</h3><p class="num" id="stat-warnings">0</p><p class="muted small">Scam checking is not on yet.</p></article>
+      <article class="stat card"><h3>Last active</h3><p class="num small-num" id="stat-last">Never</p><p class="muted small" id="stat-installed"></p></article>
+    </section>
+
+    <section class="two">
+      <article class="card" aria-labelledby="scale-h">
+        <h2 id="scale-h">Risk scale</h2>
+        <p class="muted small">What the colours and shapes will mean once checking is added.</p>
+        <ul class="legend" id="legend"></ul>
+      </article>
+
+      <article class="card" aria-labelledby="check-h">
+        <h2 id="check-h">System check</h2>
+        <p class="muted small">Confirms the parts of Prevenza can talk to each other.</p>
+        <div class="btn-row check-actions">
+          <button class="btn btn-primary" id="run-check" type="button">Run check</button>
+        </div>
+        <ul class="checks" id="checks" aria-live="polite"></ul>
+      </article>
+    </section>
+
+    <section class="card" aria-labelledby="road-h">
+      <h2 id="road-h">What is coming</h2>
+      <p class="muted small">Step 1 is the foundation. These features are planned and are not active yet.</p>
+      <ul class="road" id="road"></ul>
+    </section>
+  </main>
+
+  <script src="../shared/constants.js"></script>
+  <script src="../shared/settings.js"></script>
+  <script src="../shared/mascot.js"></script>
+  <script src="../shared/messaging.js"></script>
+  <script src="../shared/ui.js"></script>
+  <script src="dashboard.js"></script>
+</body>
+</html>

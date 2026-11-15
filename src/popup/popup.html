@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en" data-elder="false">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Prevenza: Scam Guard</title>
+  <link rel="stylesheet" href="../shared/theme.css">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body class="popup">
+  <header class="top">
+    <div class="brand">
+      <span data-mascot="44" aria-hidden="true"></span>
+      <div>
+        <div class="brand-name">Prevenza</div>
+        <div class="brand-sub">Scam Guard</div>
+      </div>
+    </div>
+    <span class="chip" id="version">v0.1.0</span>
+  </header>
+
+  <main>
+    <section class="card" aria-labelledby="protection-h">
+      <div class="row first">
+        <div class="row-text">
+          <h2 id="protection-h">Protection</h2>
+          <p class="muted small" id="protection-sub">Loading...</p>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="enabled" role="switch" aria-label="Turn Prevenza protection on or off">
+          <span class="track"></span>
+        </label>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="page-h">
+      <h2 id="page-h">This page</h2>
+      <p class="site" id="site" aria-live="polite">Checking...</p>
+      <div class="pill-line">
+        <span class="pill pill-unknown" id="risk-pill">Not scanned yet</span>
+      </div>
+      <p class="muted small" id="risk-help">Scam checking arrives in the next step. For now Prevenza only keeps watch.</p>
+    </section>
+
+    <section class="btn-row actions" aria-label="Actions">
+      <button class="btn btn-primary" id="open-dashboard" type="button">Dashboard</button>
+      <button class="btn" id="open-settings" type="button">Settings</button>
+      <button class="btn" id="preview" type="button">Say hi to Prevy</button>
+    </section>
+    <p class="muted small status" id="status" role="status" aria-live="polite"></p>
+  </main>
+
+  <footer class="foot">
+    <span class="lock" aria-hidden="true">&#128274;</span>
+    <span class="muted small">Everything stays on your device. Nothing is sent anywhere.</span>
+  </footer>
+
+  <script src="../shared/constants.js"></script>
+  <script src="../shared/settings.js"></script>
+  <script src="../shared/mascot.js"></script>
+  <script src="../shared/messaging.js"></script>
+  <script src="../shared/ui.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

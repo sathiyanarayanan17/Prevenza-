@@ -1,0 +1,14 @@
+{
+  "enabled": true,
+  "name": "Prevenza test guard",
+  "description": "Re-run the unit tests whenever source, manifest or tests change, so a privacy or manifest rule can never be broken silently.",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": ["src/**/*.js", "src/**/*.html", "src/**/*.css", "manifest.json", "test/**/*.js"]
+  },
+  "then": {
+    "type": "runCommand",
+    "command": "npm test"
+  }
+}

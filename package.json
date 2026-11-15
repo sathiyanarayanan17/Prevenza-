@@ -1,0 +1,14 @@
+{
+  "name": "prevenza-scam-guard",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Prevenza: Scam Guard. Chrome extension (Manifest V3). Step 1: foundation.",
+  "scripts": {
+    "icons": "node scripts/make-icons.js",
+    "test": "node --test \"test/*.test.js\"",
+    "test:e2e": "node e2e/run.js"
+  },
+  "devDependencies": {
+    "playwright-core": "1.65.0"
+  }
+}

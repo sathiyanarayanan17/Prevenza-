@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en" data-elder="false">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Settings - Prevenza: Scam Guard</title>
+  <link rel="stylesheet" href="../shared/theme.css">
+  <link rel="stylesheet" href="settings.css">
+</head>
+<body>
+  <header class="page-head">
+    <div class="brand">
+      <span data-mascot="52" aria-hidden="true"></span>
+      <div>
+        <div class="brand-name">Prevenza: Scam Guard</div>
+        <div class="brand-sub">Settings</div>
+      </div>
+    </div>
+    <nav class="nav" aria-label="Pages">
+      <a class="btn" href="../dashboard/dashboard.html">Dashboard</a>
+    </nav>
+  </header>
+
+  <main class="wrap">
+    <section class="card" aria-labelledby="general-h">
+      <h2 id="general-h">General</h2>
+      <div class="row">
+        <div class="row-text">
+          <div class="row-title">Protection</div>
+          <p class="muted small">Master switch. When off, Prevenza does nothing at all.</p>
+        </div>
+        <label class="switch"><input type="checkbox" id="enabled" role="switch" aria-label="Protection"><span class="track"></span></label>
+      </div>
+      <div class="row">
+        <div class="row-text">
+          <label class="row-title" for="language">Language</label>
+          <p class="muted small">Interface language. Translations arrive in a later step.</p>
+        </div>
+        <select id="language"></select>
+      </div>
+      <div class="row">
+        <div class="row-text">
+          <div class="row-title" id="sens-label">Sensitivity</div>
+          <p class="muted small" id="sens-help">How early Prevenza will warn once scam checking is added.</p>
+        </div>
+        <select id="sensitivity" aria-labelledby="sens-label"></select>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="assistant-h">
+      <h2 id="assistant-h">Assistant and accessibility</h2>
+      <div class="row">
+        <div class="row-text">
+          <div class="row-title">Elder mode</div>
+          <p class="muted small">Larger text and bigger buttons everywhere.</p>
+        </div>
+        <label class="switch"><input type="checkbox" id="elderMode" role="switch" aria-label="Elder mode"><span class="track"></span></label>
+      </div>
+      <div class="row">
+        <div class="row-text">
+          <div class="row-title">Show Prevy on pages</div>
+          <p class="muted small">Off by default. Prevy never appears unless you want it.</p>
+        </div>
+        <label class="switch"><input type="checkbox" id="showAssistantBadge" role="switch" aria-label="Show the assistant badge on web pages"><span class="track"></span></label>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="muted-h">
+      <h2 id="muted-h">Quiet sites</h2>
+      <p class="muted small">Prevenza stays silent on these websites, including their subdomains.</p>
+      <form class="add" id="add-form" autocomplete="off">
+        <label class="visually-hidden" for="site-input">Website to mute</label>
+        <input type="text" id="site-input" placeholder="example.com" inputmode="url" spellcheck="false" maxlength="253">
+        <button class="btn btn-primary" type="submit">Add</button>
+      </form>
+      <p class="small error" id="site-error" role="alert"></p>
+      <ul class="sites" id="sites" aria-label="Quiet sites"></ul>
+      <p class="muted small" id="sites-empty">No quiet sites yet.</p>
+    </section>
+
+    <section class="card" aria-labelledby="data-h">
+      <h2 id="data-h">Your data</h2>
+      <p class="muted small">Prevenza keeps only your settings and two counters on this device. It never stores web addresses, page text, passwords or payment details.</p>
+      <div class="btn-row data-actions">
+        <button class="btn btn-danger" id="reset-stats" type="button">Reset statistics</button>
+        <button class="btn btn-danger" id="reset-settings" type="button">Restore default settings</button>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="privacy-h">
+      <h2 id="privacy-h">Privacy and permissions</h2>
+      <ul class="facts">
+        <li>The only browser permission is <strong>storage</strong>, to remember these settings.</li>
+        <li>On web pages Prevenza reads only the site name (for example, example.com). It never reads what you type.</li>
+        <li>No passwords, payment details, cookies or page text are collected.</li>
+        <li>Nothing is sent over the internet. The extension is blocked from making network requests.</li>
+      </ul>
+    </section>
+  </main>
+
+  <script src="../shared/constants.js"></script>
+  <script src="../shared/settings.js"></script>
+  <script src="../shared/mascot.js"></script>
+  <script src="../shared/messaging.js"></script>
+  <script src="../shared/ui.js"></script>
+  <script src="settings.js"></script>
+</body>
+</html>
