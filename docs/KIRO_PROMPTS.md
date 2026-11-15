@@ -20,7 +20,7 @@ Already built and tested in this folder. If you want Kiro to rebuild or review i
 
 ---
 
-## Step 2: Smart URL intelligence (offline, rule-based)
+## Step 2: Smart URL intelligence (offline, rule-based) - DONE (see .kiro/specs/step-2-url-intelligence)
 
 > Goal: add an offline URL analyzer. No scam scoring UI yet beyond a debug view.
 >

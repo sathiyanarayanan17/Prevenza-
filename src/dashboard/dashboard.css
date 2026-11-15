@@ -16,3 +16,11 @@
 .checks .bad .mark { color: var(--danger); }
 .road { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
 .road li { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.link-form { display: flex; gap: 10px; margin-top: 12px; }
+.link-form input { flex: 1; min-width: 0; }
+.link-result { margin-top: 12px; }
+.link-result .verdict { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.link-result .host { font-weight: 700; word-break: break-all; }
+.link-result .note { margin-top: 6px; }
+.link-result .problem { color: #fca5a5; }
+@media (max-width: 480px) { .link-form { flex-direction: column; } }

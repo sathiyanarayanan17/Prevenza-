@@ -30,6 +30,8 @@
     GET_TAB_STATUS: "prevenza/get-tab-status", // popup/dashboard -> content script
     PREVIEW_ASSISTANT: "prevenza/preview-assistant", // popup -> content script
     SETTINGS_UPDATED: "prevenza/settings-updated", // background -> content scripts
+    ANALYZE_SITE: "prevenza/analyze-site", // popup -> background: site name + protocol of the open tab
+    CHECK_URL: "prevenza/check-url", // dashboard -> background: an address the user typed or pasted
   });
 
   const STORAGE_KEYS = Object.freeze({
@@ -53,12 +55,12 @@
     Object.freeze({ id: "strict", label: "Strict", help: "Warns early. More interruptions." }),
   ]);
 
-  // The risk scale the interface uses. Step 1 never assigns a level other than "unknown".
+  // The risk scale the interface shows. "pill" is the style name. Results from the URL checker use low / medium / high.
   const RISK_LEVELS = Object.freeze([
-    Object.freeze({ id: "unknown", label: "Not scanned yet", help: "Prevenza has not checked this page." }),
-    Object.freeze({ id: "safe", label: "Looks safe", help: "No warning signs found." }),
-    Object.freeze({ id: "caution", label: "Be careful", help: "Some warning signs. Double-check." }),
-    Object.freeze({ id: "danger", label: "Likely scam", help: "Strong warning signs. Do not pay." }),
+    Object.freeze({ id: "unknown", pill: "unknown", label: "Not scanned yet", help: "Prevenza has not checked this page." }),
+    Object.freeze({ id: "low", pill: "low", label: "Low risk", help: "No strong warning signs in the address. This is not a guarantee." }),
+    Object.freeze({ id: "medium", pill: "caution", label: "Medium risk", help: "Some unusual signs. Check carefully." }),
+    Object.freeze({ id: "high", pill: "danger", label: "High risk", help: "Strong warning signs. Do not pay." }),
   ]);
 
   const DEFAULT_SETTINGS = Object.freeze({

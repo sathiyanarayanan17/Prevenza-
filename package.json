@@ -9,6 +9,7 @@
     "test:e2e": "node e2e/run.js"
   },
   "devDependencies": {
+    "fast-check": "4.10.2",
     "playwright-core": "1.65.0"
   }
 }

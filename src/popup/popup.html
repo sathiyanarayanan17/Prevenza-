@@ -40,6 +40,10 @@
         <span class="pill pill-unknown" id="risk-pill">Not scanned yet</span>
       </div>
       <p class="muted small" id="risk-help">Scam checking arrives in the next step. For now Prevenza only keeps watch.</p>
+      <details class="why" id="why" hidden>
+        <summary>Why this rating?</summary>
+        <ul class="reasons" id="reasons"></ul>
+      </details>
     </section>
 
     <section class="btn-row actions" aria-label="Actions">
@@ -57,6 +61,8 @@
 
   <script src="../shared/constants.js"></script>
   <script src="../shared/settings.js"></script>
+  <script src="../shared/url-rules.js"></script>
+  <script src="../shared/url-intel.js"></script>
   <script src="../shared/mascot.js"></script>
   <script src="../shared/messaging.js"></script>
   <script src="../shared/ui.js"></script>

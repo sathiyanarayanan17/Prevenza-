@@ -190,6 +190,114 @@ const server = http
     check("dashboard is responsive on a phone-sized window (no sideways scrolling)", overflow === false);
     await dash.screenshot({ path: path.join(SHOTS, "6-dashboard-mobile.png"), fullPage: true });
 
+    // ---- 6b. Step 2: offline URL intelligence (new checks, added after the Step 1 checks)
+    await dash.setViewportSize({ width: 1100, height: 900 });
+    const checkLink = async (text) => {
+      await dash.fill("#link-input", text);
+      await dash.click("#link-form button[type=submit]");
+      await sleep(350);
+      return dash.textContent("#link-result");
+    };
+    let out = await checkLink("https://retail.onlinesbi.sbi/login");
+    check("link checker: the real SBI address is Low risk and recognised", /Low risk/.test(out) && /SBI/.test(out) && /does not prove/i.test(out));
+    out = await checkLink("https://sbi-kyc-update.xyz/login");
+    check("link checker: a fake KYC address is High risk with reasons", /High risk/.test(out) && /not SBI's website/.test(out) && (await dash.$$eval("#link-result .reasons li", (l) => l.length)) >= 3);
+    check("link checker: the risk has a label AND a shape (not colour alone)", (await dash.$("#link-result .pill-danger")) !== null && /High risk/.test(await dash.textContent("#link-result .pill")));
+    await dash.screenshot({ path: path.join(SHOTS, "7-link-checker-high.png"), fullPage: true });
+    out = await checkLink("https://bit.ly/abc123");
+    check("link checker: a shortened link is Medium risk", /Medium risk/.test(out) && /destination|where/i.test(out));
+    out = await checkLink("http://203.0.113.9/login");
+    check("link checker: a bare number address is flagged", /number address/i.test(out) && !/Low risk/.test(out));
+    out = await checkLink("https://xn--pple-43d.com");
+    check("link checker: look-alike alphabet trick is High risk", /High risk/.test(out) && /alphabets/i.test(out));
+    out = await checkLink("https://sbi.co.in@evil.com/");
+    check("link checker: the @ trick is caught and the real site is named", /High risk/.test(out) && /evil\.com/.test(out));
+    out = await checkLink("https://example.com");
+    check("link checker: an ordinary site gets no needless warning", /Low risk/.test(out) && /Nothing unusual/.test(out));
+    out = await checkLink("not a link ???");
+    check("link checker: malformed text gets a friendly message, no crash", /single web address|valid web address/i.test(out));
+    out = await checkLink("javascript:alert(1)");
+    check("link checker: unsupported addresses are refused politely", /http or https/i.test(out));
+    out = await checkLink("");
+    check("link checker: an empty box asks for an address", /type or paste/i.test(out));
+    check("link checker: the typed address is not kept in the page after checking", !(await dash.textContent("#link-result")).includes("javascript"));
+
+    // The popup on a real website tab (the page is served from a look-alike name by the test browser, no real network)
+    const scam = await ctx.newPage();
+    watch(scam, "look-alike site");
+    await scam.route("http://sbi-kyc-update.xyz/**", (route) => route.fulfill({ contentType: "text/html", body: "<!doctype html><title>Fake</title><h1>Pretend login</h1>" }));
+    await scam.goto("http://sbi-kyc-update.xyz/login");
+    await sleep(1200);
+    check("content script still reports only the site name on a look-alike page", await sw.evaluate(async () => {
+      const tabs = await chrome.tabs.query({});
+      for (const t of tabs) {
+        try { const r = await chrome.tabs.sendMessage(t.id, { type: "prevenza/get-tab-status" }); if (r && r.hostname === "sbi-kyc-update.xyz") return Object.keys(r).sort().join() === "badgeVisible,enabled,hostname,muted,protocol,ready,ok".split(",").sort().join(); } catch (e) { /* no content script */ }
+      }
+      return false;
+    }));
+    const scamTabId = await sw.evaluate(async () => {
+      const tabs = await chrome.tabs.query({});
+      for (const t of tabs) {
+        try { const r = await chrome.tabs.sendMessage(t.id, { type: "prevenza/get-tab-status" }); if (r && r.hostname === "sbi-kyc-update.xyz") return t.id; } catch (e) { /* no content script */ }
+      }
+      return null;
+    });
+    check("found the look-alike tab for the popup test", typeof scamTabId === "number");
+
+    const popup2 = await ctx.newPage();
+    watch(popup2, "popup on a real tab");
+    const popup2Requests = [];
+    popup2.on("request", (r) => popup2Requests.push(r.url()));
+    await popup2.addInitScript((tabId) => { try { chrome.tabs.query = async () => [{ id: tabId, active: true }]; } catch (e) { /* leave the real function */ } }, scamTabId);
+    await popup2.setViewportSize({ width: 380, height: 720 });
+    await popup2.goto(`chrome-extension://${id}/src/popup/popup.html`);
+    await popup2.waitForFunction(() => document.getElementById("risk-pill").textContent !== "Not scanned yet", null, { timeout: 6000 }).catch(() => undefined);
+    check("popup replaces 'Not scanned yet' with a real result: High risk", (await popup2.textContent("#risk-pill")) === "High risk" && (await popup2.textContent("#site")) === "sbi-kyc-update.xyz", await popup2.textContent("#risk-pill"));
+    check("popup shows a shape-and-label risk pill", (await popup2.$("#risk-pill.pill-danger")) !== null);
+    await popup2.click("#why summary");
+    check("popup explains why in plain language (reasons list)", (await popup2.$$eval("#reasons li", (l) => l.length)) >= 2 && /SBI/.test(await popup2.textContent("#reasons")));
+    await popup2.screenshot({ path: path.join(SHOTS, "8-popup-high-risk.png") });
+
+    // protection off -> the popup must not scan
+    await popup2.click("#enabled", { force: true });
+    await sleep(700);
+    check("protection off: the popup goes back to 'Not scanned yet' and says why", (await popup2.textContent("#risk-pill")) === "Not scanned yet" && /Protection is off/.test(await popup2.textContent("#risk-help")));
+    const offReply = await popup2.evaluate(() => chrome.runtime.sendMessage({ type: "prevenza/analyze-site", payload: { hostname: "sbi-kyc-update.xyz", protocol: "http:" } }));
+    check("protection off: the background refuses to analyse", offReply.ok === true && offReply.skipped === "protection-off" && !offReply.result);
+    await popup2.click("#enabled", { force: true });
+    await sleep(700);
+    check("protection back on: the result returns", (await popup2.textContent("#risk-pill")) === "High risk");
+
+    // quiet site -> not scanned
+    await popup2.evaluate(() => chrome.runtime.sendMessage({ type: "prevenza/update-settings", payload: { settings: { mutedSites: ["sbi-kyc-update.xyz"] } } }));
+    const quietReply = await popup2.evaluate(() => chrome.runtime.sendMessage({ type: "prevenza/analyze-site", payload: { hostname: "login.sbi-kyc-update.xyz", protocol: "https:" } }));
+    check("quiet site: the site and its sub-sites are not analysed", quietReply.ok === true && quietReply.skipped === "quiet-site");
+    await popup2.reload();
+    await sleep(900);
+    check("quiet site: the popup says it stayed quiet", (await popup2.textContent("#risk-pill")) === "Not scanned yet" && /muted/.test(await popup2.textContent("#risk-help")));
+    await popup2.evaluate(() => chrome.runtime.sendMessage({ type: "prevenza/update-settings", payload: { settings: { mutedSites: [] } } }));
+
+    // strict message shape: a path or page text is refused at the door
+    const pathReply = await popup2.evaluate(() => chrome.runtime.sendMessage({ type: "prevenza/analyze-site", payload: { hostname: "a.com", protocol: "https:", path: "/account?token=1" } }));
+    check("analysis refuses a message that carries a path or query", pathReply.ok === false && pathReply.error === "bad-payload");
+
+    // a normal local site is Low risk
+    const localTabId = await sw.evaluate(async () => {
+      const tabs = await chrome.tabs.query({});
+      for (const t of tabs) {
+        try { const r = await chrome.tabs.sendMessage(t.id, { type: "prevenza/get-tab-status" }); if (r && r.hostname === "localhost") return t.id; } catch (e) { /* skip */ }
+      }
+      return null;
+    });
+    const localReply = await popup2.evaluate(() => chrome.runtime.sendMessage({ type: "prevenza/analyze-site", payload: { hostname: "localhost", protocol: "http:" } }));
+    check("a local test site is Low risk with an explanation", localReply.ok && localReply.result.level === "low" && localReply.result.indicators[0].id === "local_address" && typeof localTabId === "number");
+
+    // privacy: nothing about the scanned addresses was stored
+    const storedAfter = JSON.stringify(await sw.evaluate(() => chrome.storage.local.get(null)));
+    check("no scanned address or link is stored anywhere", !/sbi-kyc-update|bit\.ly|203\.0\.113|evil\.com|xn--pple|retail\.onlinesbi|javascript/i.test(storedAfter), "storage keys: " + Object.keys(JSON.parse(storedAfter)).join(", "));
+    check("the popup on a real tab made no network requests", popup2Requests.every((u) => u.startsWith("chrome-extension://") || u.startsWith("data:")), popup2Requests.length + " local requests");
+    await scam.close();
+
     // ---- 7. reset buttons
     await settings.click("#reset-stats");
     await settings.click("#reset-stats");

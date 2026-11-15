@@ -7,6 +7,8 @@ importScripts(
   "../shared/constants.js",
   "../shared/settings.js",
   "../shared/storage.js",
+  "../shared/url-rules.js",
+  "../shared/url-intel.js",
   "./handler.js"
 );
 
@@ -31,6 +33,7 @@ const background = H.createBackground({
   runtimeId: chrome.runtime.id,
   version: chrome.runtime.getManifest().version,
   broadcast,
+  urlIntel: H.urlIntel,
 });
 
 chrome.runtime.onInstalled.addListener(() => {

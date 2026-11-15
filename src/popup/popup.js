@@ -11,12 +11,23 @@
     site: $("site"),
     riskPill: $("risk-pill"),
     riskHelp: $("risk-help"),
+    why: $("why"),
+    reasons: $("reasons"),
     status: $("status"),
     version: $("version"),
     preview: $("preview"),
   };
 
   let settings = null;
+
+  const NOT_SCANNED_HELP = "Open a website to see it here. Chrome keeps its own pages private.";
+
+  function resetRisk(helpText) {
+    H.ui.setRiskPill(el.riskPill, null);
+    el.riskHelp.textContent = helpText;
+    el.why.hidden = true;
+    el.reasons.textContent = "";
+  }
 
   function renderProtection() {
     el.enabled.checked = !!settings.enabled;
@@ -39,19 +50,31 @@
     return true;
   }
 
+  // Ask the background worker to check the site name of the open tab. Only the site name and protocol are sent.
+  async function scanSite(tab) {
+    const reply = await H.messaging.send({ type: MSG.ANALYZE_SITE, payload: { hostname: tab.hostname, protocol: tab.protocol } });
+    if (!reply.ok) return resetRisk("This site could not be checked.");
+    if (reply.skipped === "protection-off") return resetRisk("Protection is off, so this page was not checked.");
+    if (reply.skipped === "quiet-site") return resetRisk("You muted this site, so Prevenza stays quiet here and did not check it.");
+    const result = reply.result;
+    if (!result || !result.ok) return resetRisk("This address could not be checked.");
+
+    H.ui.setRiskPill(el.riskPill, result.level);
+    el.riskHelp.textContent = result.summary;
+    if (result.hostUnicode && result.hostUnicode !== result.host) el.site.textContent = result.hostUnicode + " (" + result.host + ")";
+    H.ui.renderIndicators(el.reasons, result.indicators, 4);
+    el.why.hidden = result.indicators.length === 0;
+  }
+
   async function loadTab() {
     const tab = await H.messaging.sendToActiveTab({ type: MSG.GET_TAB_STATUS });
     if (tab.ok) {
       el.site.textContent = tab.hostname || "(this page)";
       el.preview.disabled = false;
-      if (tab.muted) {
-        el.riskHelp.textContent = "You muted this site, so Prevenza stays quiet here.";
-      } else if (!tab.enabled) {
-        el.riskHelp.textContent = "Protection is off.";
-      }
+      await scanSite(tab);
     } else {
       el.site.textContent = "Browser pages can't be protected";
-      el.riskHelp.textContent = "Open a website to see it here. Chrome keeps its own pages private.";
+      resetRisk(NOT_SCANNED_HELP);
       el.preview.disabled = true;
     }
   }

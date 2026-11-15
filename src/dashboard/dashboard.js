@@ -7,7 +7,7 @@
 
   // Ideas for later steps. Shown honestly as "Planned", never as working features.
   const ROADMAP = [
-    ["Smart URL checks", "Planned"],
+    ["Smart URL checks", "Ready"],
     ["Scam risk score and explanation", "Planned"],
     ["UPI payment analyzer", "Planned"],
     ["Scam message checker (multilingual)", "Planned"],
@@ -22,7 +22,7 @@
     H.RISK_LEVELS.forEach((level) => {
       const li = document.createElement("li");
       const pill = document.createElement("span");
-      pill.className = "pill pill-" + level.id;
+      pill.className = "pill pill-" + (level.pill || level.id);
       pill.textContent = level.label;
       const help = document.createElement("span");
       help.className = "muted small";
@@ -55,7 +55,7 @@
     $("stat-last").textContent = H.ui.formatDate(stats.lastActiveAt);
     $("stat-installed").textContent = stats.installedAt ? "Installed " + H.ui.formatDate(stats.installedAt) : "";
     $("hero-sub").textContent = settings.enabled
-      ? "Prevenza is on and keeping watch quietly. Scam checking arrives in the next step."
+      ? "Prevenza is on and keeping watch quietly. Link checks are ready. Full scam scoring arrives in the next step."
       : "Protection is off. Turn it on in Settings.";
   }
 
@@ -105,6 +105,56 @@
       $("hero-sub").textContent = "Prevenza could not load its data. Try reloading the extension.";
     }
   }
+
+  // ---- link checker: the user pastes an address. It is analysed in memory and never stored.
+  function paragraph(text, className) {
+    const p = document.createElement("p");
+    if (className) p.className = className;
+    p.textContent = text;
+    return p;
+  }
+
+  function showLinkResult(reply) {
+    const box = $("link-result");
+    box.textContent = "";
+    if (!reply.ok) {
+      box.appendChild(paragraph("Prevenza could not check that right now. Please try again.", "problem"));
+      return;
+    }
+    if (reply.skipped === "protection-off") {
+      box.appendChild(paragraph("Protection is off, so links are not checked. Turn it on in Settings.", "muted"));
+      return;
+    }
+    const result = reply.result;
+    if (!result.ok) {
+      box.appendChild(paragraph(result.message, "problem"));
+      return;
+    }
+    const verdict = document.createElement("div");
+    verdict.className = "verdict";
+    const pill = document.createElement("span");
+    pill.className = "pill";
+    H.ui.setRiskPill(pill, result.level);
+    const host = document.createElement("span");
+    host.className = "host";
+    host.textContent = result.hostUnicode !== result.host ? result.hostUnicode + " (" + result.host + ")" : result.host;
+    verdict.append(pill, host);
+    box.appendChild(verdict);
+    box.appendChild(paragraph(result.summary, "muted"));
+    if (result.assumedScheme) box.appendChild(paragraph("You did not type http or https, so this was checked as https.", "muted small note"));
+    if (reply.quietSite) box.appendChild(paragraph("You marked this site as quiet, so Prevenza will not interrupt you there. This check ran because you asked for it.", "muted small note"));
+    const list = document.createElement("ul");
+    list.className = "reasons";
+    H.ui.renderIndicators(list, result.indicators);
+    if (result.indicators.length) box.appendChild(list);
+    else box.appendChild(paragraph("Nothing unusual was found in the address.", "muted small note"));
+  }
+
+  $("link-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const reply = await H.messaging.send({ type: MSG.CHECK_URL, payload: { url: $("link-input").value } });
+    showLinkResult(reply);
+  });
 
   $("run-check").addEventListener("click", runCheck);
   start();

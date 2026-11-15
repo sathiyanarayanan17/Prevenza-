@@ -114,6 +114,8 @@ select:focus, input[type="text"]:focus { border-color: var(--blue); }
 .pill::before { content: ""; width: 10px; height: 10px; flex: none; background: currentColor; }
 .pill-unknown { color: #cbd5e1; background: #1b2740; border-color: #34466b; }
 .pill-unknown::before { border-radius: 50%; opacity: 0.8; }
+.pill-low { color: #93c5fd; background: #0f1d3a; border-color: #2b4a85; }
+.pill-low::before { border-radius: 50%; border: 2px solid currentColor; background: transparent; }
 .pill-safe { color: #86efac; background: #0f2a1c; border-color: #1c5a37; }
 .pill-safe::before { border-radius: 50%; }
 .pill-caution { color: #fcd34d; background: #2d2209; border-color: #6b4e0b; }
@@ -128,6 +130,18 @@ select:focus, input[type="text"]:focus { border-color: var(--blue); }
 
 .chip { display: inline-block; font-size: 0.75rem; padding: 2px 10px; border-radius: 999px; background: #1b2740; border: 1px solid #34466b; color: var(--muted); }
 .chip-ready { background: #0f2a1c; border-color: #1c5a37; color: #86efac; }
+
+/* reasons list (URL checks) */
+.reasons { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
+.reasons li { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; }
+.reasons li > strong { display: block; margin-top: 2px; }
+.sev { display: inline-block; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.02em; text-transform: uppercase; padding: 1px 8px; border-radius: 999px; border: 1px solid transparent; }
+.sev-high { color: #fca5a5; background: #2d1013; border-color: #7a1f27; }
+.sev-medium { color: #fcd34d; background: #2d2209; border-color: #6b4e0b; }
+.sev-low { color: #cbd5e1; background: #1b2740; border-color: #34466b; }
+.sev-info { color: #93c5fd; background: #0f1d3a; border-color: #2b4a85; }
+details.why { margin-top: 8px; }
+details.why summary { cursor: pointer; font-weight: 600; min-height: 32px; }
 
 /* toast */
 .toast { position: fixed; left: 50%; bottom: 18px; transform: translate(-50%, 20px); background: var(--surface-2); color: var(--text); border: 1px solid var(--blue); padding: 10px 16px; border-radius: 10px; opacity: 0; pointer-events: none; transition: opacity 0.15s, transform 0.15s; z-index: 50; }

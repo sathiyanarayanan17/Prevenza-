@@ -33,14 +33,14 @@
     <section class="stats" aria-label="Summary">
       <article class="stat card"><h3>Protection</h3><p class="num" id="stat-protection">-</p><p class="muted small">Master switch</p></article>
       <article class="stat card"><h3>Pages watched</h3><p class="num" id="stat-pages">0</p><p class="muted small">A simple count. No addresses are saved.</p></article>
-      <article class="stat card"><h3>Warnings shown</h3><p class="num" id="stat-warnings">0</p><p class="muted small">Scam checking is not on yet.</p></article>
+      <article class="stat card"><h3>Warnings shown</h3><p class="num" id="stat-warnings">0</p><p class="muted small">Warning pop-ups arrive in a later step.</p></article>
       <article class="stat card"><h3>Last active</h3><p class="num small-num" id="stat-last">Never</p><p class="muted small" id="stat-installed"></p></article>
     </section>
 
     <section class="two">
       <article class="card" aria-labelledby="scale-h">
         <h2 id="scale-h">Risk scale</h2>
-        <p class="muted small">What the colours and shapes will mean once checking is added.</p>
+        <p class="muted small">What the labels and shapes mean. These are preliminary ratings based on the web address alone.</p>
         <ul class="legend" id="legend"></ul>
       </article>
 
@@ -54,15 +54,28 @@
       </article>
     </section>
 
+    <section class="card" aria-labelledby="link-h" id="link-check">
+      <h2 id="link-h">Check a link</h2>
+      <p class="muted small">Paste a web address you were sent. It is checked on your device. Nothing is saved or sent anywhere.</p>
+      <form class="link-form" id="link-form" autocomplete="off">
+        <label class="visually-hidden" for="link-input">Web address to check</label>
+        <input type="text" id="link-input" maxlength="2048" placeholder="Paste a link here" spellcheck="false" inputmode="url" autocomplete="off">
+        <button class="btn btn-primary" type="submit">Check link</button>
+      </form>
+      <div id="link-result" class="link-result" aria-live="polite"></div>
+    </section>
+
     <section class="card" aria-labelledby="road-h">
       <h2 id="road-h">What is coming</h2>
-      <p class="muted small">Step 1 is the foundation. These features are planned and are not active yet.</p>
+      <p class="muted small">Link checks are ready. These features are planned and are not active yet.</p>
       <ul class="road" id="road"></ul>
     </section>
   </main>
 
   <script src="../shared/constants.js"></script>
   <script src="../shared/settings.js"></script>
+  <script src="../shared/url-rules.js"></script>
+  <script src="../shared/url-intel.js"></script>
   <script src="../shared/mascot.js"></script>
   <script src="../shared/messaging.js"></script>
   <script src="../shared/ui.js"></script>

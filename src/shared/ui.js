@@ -45,5 +45,46 @@
     return Number.isNaN(d.getTime()) ? "Never" : d.toLocaleString();
   }
 
-  H.ui = { placeMascots, applyPrefs, toast, formatDate };
+  /** Set a risk pill. level is null (not scanned) or "low" | "medium" | "high". Label and shape always show, never colour alone. */
+  function setRiskPill(el, level) {
+    ["pill-unknown", "pill-low", "pill-caution", "pill-danger"].forEach((c) => el.classList.remove(c));
+    const risk = level && H.urlIntel ? H.urlIntel.URL_RISK[level] : null;
+    if (!risk) {
+      el.classList.add("pill-unknown");
+      el.textContent = "Not scanned yet";
+      return;
+    }
+    el.classList.add("pill-" + risk.pill);
+    el.textContent = risk.label;
+  }
+
+  const SEVERITY_WORDS = { high: "Strong sign", medium: "Warning sign", low: "Minor sign", info: "Note" };
+
+  /** Fill a <ul> with the reasons from an analysis, in plain language. Text only, never HTML. */
+  function renderIndicators(listEl, indicators, max) {
+    listEl.textContent = "";
+    const items = Array.isArray(indicators) ? indicators : [];
+    const shown = typeof max === "number" ? items.slice(0, max) : items;
+    shown.forEach((ind) => {
+      const li = document.createElement("li");
+      const tag = document.createElement("span");
+      tag.className = "sev sev-" + (SEVERITY_WORDS[ind.severity] ? ind.severity : "info");
+      tag.textContent = SEVERITY_WORDS[ind.severity] || "Note";
+      const title = document.createElement("strong");
+      title.textContent = ind.label;
+      const why = document.createElement("p");
+      why.className = "muted small";
+      why.textContent = ind.why;
+      li.append(tag, title, why);
+      listEl.appendChild(li);
+    });
+    if (shown.length < items.length) {
+      const more = document.createElement("li");
+      more.className = "muted small";
+      more.textContent = "and " + (items.length - shown.length) + " more.";
+      listEl.appendChild(more);
+    }
+  }
+
+  H.ui = { placeMascots, applyPrefs, toast, formatDate, setRiskPill, renderIndicators };
 })();

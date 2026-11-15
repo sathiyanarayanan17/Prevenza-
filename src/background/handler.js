@@ -30,8 +30,21 @@
     [MSG.RESET_STATS]: ["page"],
     [MSG.RESET_SETTINGS]: ["page"],
     [MSG.DIAGNOSTICS]: ["page"],
+    [MSG.ANALYZE_SITE]: ["page"],
+    [MSG.CHECK_URL]: ["page"],
     [MSG.CONTENT_READY]: ["content"],
   });
+
+  // URL analysis accepts only the exact fields below. A path, query or page text is refused at the door.
+  const SITE_FIELDS = ["hostname", "protocol"];
+  const URL_FIELDS = ["url"];
+  const MAX_URL_INPUT = 2048;
+  const MAX_HOSTNAME_INPUT = 253;
+
+  function hasOnlyKeys(obj, allowed) {
+    const keys = Object.keys(obj);
+    return keys.length === allowed.length && allowed.every((k) => keys.includes(k));
+  }
 
   /**
    * deps: {
@@ -39,11 +52,13 @@
    *   runtimeId:  chrome.runtime.id
    *   version:    manifest version string
    *   broadcast:  async (message) => void   sends a message to every tab's content script
+   *   urlIntel:   the offline URL analyzer (optional; without it URL messages reply "unavailable")
    *   now:        () => number               optional, for tests
    * }
    */
   function createBackground(deps) {
     const { store, runtimeId, version } = deps;
+    const urlIntel = deps.urlIntel || null;
     const broadcast = deps.broadcast || (async () => undefined);
     const now = deps.now || (() => Date.now());
     const extOrigin = "chrome-extension://" + runtimeId + "/";
@@ -96,6 +111,33 @@
           const started = now();
           const storageOk = await store.selfTest();
           return { ok: true, version, storageOk, workerTime: now() - started };
+        }
+
+        // Automatic scan of the open tab. Receives the site name and protocol only.
+        case MSG.ANALYZE_SITE: {
+          const p = message.payload;
+          if (!H.isPlainObject(p) || !hasOnlyKeys(p, SITE_FIELDS)) return { ok: false, error: "bad-payload" };
+          if (typeof p.hostname !== "string" || p.hostname.length === 0 || p.hostname.length > MAX_HOSTNAME_INPUT) return { ok: false, error: "bad-payload" };
+          if (p.protocol !== "http:" && p.protocol !== "https:") return { ok: false, error: "bad-payload" };
+          if (!urlIntel) return { ok: false, error: "unavailable" };
+          const settings = await store.getSettings();
+          if (!settings.enabled) return { ok: true, skipped: "protection-off" };
+          if (H.isMuted(p.hostname, settings.mutedSites)) return { ok: true, skipped: "quiet-site" };
+          return { ok: true, result: urlIntel.analyzeSite({ hostname: p.hostname, protocol: p.protocol }) };
+        }
+
+        // The user typed or pasted this address into the link checker. Nothing is stored.
+        case MSG.CHECK_URL: {
+          const p = message.payload;
+          if (!H.isPlainObject(p) || !hasOnlyKeys(p, URL_FIELDS)) return { ok: false, error: "bad-payload" };
+          if (typeof p.url !== "string" || p.url.length > MAX_URL_INPUT) return { ok: false, error: "bad-payload" };
+          if (!urlIntel) return { ok: false, error: "unavailable" };
+          const settings = await store.getSettings();
+          if (!settings.enabled) return { ok: true, skipped: "protection-off" };
+          const result = urlIntel.analyzeUrl(p.url);
+          // A site on the quiet list is still checked when the user asks directly; the answer says so.
+          const quiet = result.ok && H.isMuted(result.host, settings.mutedSites);
+          return { ok: true, result, quietSite: !!quiet };
         }
 
         default:
