@@ -531,7 +531,7 @@
       hostUnicode: display.hostUnicode,
       scheme: p.scheme,
       assumedScheme: !!p.assumedScheme,
-      indicators: ordered.map((i) => ({ id: i.id, severity: i.severity, weight: i.weight, label: i.label, why: i.why })),
+      indicators: ordered.map((i) => ({ id: i.id, severity: i.severity, weight: i.weight, label: i.label, why: i.why, critical: !!i.critical })),
     };
   }
 
