@@ -15,6 +15,7 @@ importScripts(
   "../shared/message-scan.js",
   "../shared/upi-rules.js",
   "../shared/upi-analyze.js",
+  "../shared/screenshot.js",
   "./handler.js"
 );
 
@@ -43,6 +44,7 @@ const background = H.createBackground({
   messageScan: H.messageScan,
   riskEngine: H.riskEngine,
   upiAnalyze: H.upiAnalyze,
+  screenshot: H.screenshot,
 });
 
 chrome.runtime.onInstalled.addListener(() => {

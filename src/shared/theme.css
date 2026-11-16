@@ -37,6 +37,8 @@ h1 { font-size: 1.5rem; }
 h2 { font-size: 1.15rem; }
 h3 { font-size: 1rem; }
 p { margin: 0; }
+/* An element with the hidden attribute stays hidden even when a rule below gives it display: grid or flex. */
+[hidden] { display: none !important; }
 a { color: var(--blue-soft); }
 .muted { color: var(--muted); }
 .small { font-size: 0.875rem; }

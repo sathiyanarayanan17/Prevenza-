@@ -391,6 +391,169 @@ const server = http
     await dash.setViewportSize({ width: 1100, height: 900 });
     await dash.click("#upi-clear");
 
+    // ---- 6e. Step 6: screenshot checker with offline text reading (new checks, added after the Step 1 to 5 checks)
+    const ocrErrorsBefore = errors.length;
+    const externalBefore = dashRequests.filter((u) => !u.startsWith("chrome-extension://") && !u.startsWith("data:")).length;
+    const makeImage = async (name, lines, opts) => {
+      const o = Object.assign({ font: "30px Arial", mime: "image/png", width: 1000, noise: false, blank: false }, opts || {});
+      const b64 = await dash.evaluate(async ({ lines, o }) => {
+        const c = document.createElement("canvas");
+        c.width = o.width;
+        c.height = Math.max(120, 80 + lines.length * 64);
+        const g = c.getContext("2d");
+        g.fillStyle = "#fff";
+        g.fillRect(0, 0, c.width, c.height);
+        if (o.noise) {
+          const d = g.getImageData(0, 0, c.width, c.height);
+          for (let i = 0; i < d.data.length; i += 4) { const v = Math.floor(Math.random() * 256); d.data[i] = v; d.data[i + 1] = v; d.data[i + 2] = v; }
+          g.putImageData(d, 0, 0);
+        } else if (!o.blank) {
+          g.fillStyle = "#111";
+          g.font = o.font;
+          g.textBaseline = "top";
+          lines.forEach((l, i) => g.fillText(l, 30, 30 + i * 64));
+        }
+        const blob = await new Promise((r) => c.toBlob(r, o.mime, 0.92));
+        const buf = new Uint8Array(await blob.arrayBuffer());
+        let s = "";
+        for (let i = 0; i < buf.length; i++) s += String.fromCharCode(buf[i]);
+        return btoa(s);
+      }, { lines, o });
+      const file = path.join(os.tmpdir(), name);
+      fs.writeFileSync(file, Buffer.from(b64, "base64"));
+      return file;
+    };
+    const readShot = async (file, language) => {
+      await dash.setInputFiles("#shot-file", file);
+      await sleep(400);
+      await dash.selectOption("#shot-language", language || "eng");
+      await dash.evaluate(() => {
+        window.__sawProgress = false;
+        const wrap = document.getElementById("shot-progress-wrap");
+        new MutationObserver(() => { if (!wrap.hidden) window.__sawProgress = true; }).observe(wrap, { attributes: true });
+      });
+      await dash.click("#shot-analyze");
+      await dash.waitForFunction(() => document.getElementById("shot-result").textContent.length > 0 || !document.getElementById("shot-problem").hidden, null, { timeout: 90000 });
+      await sleep(300);
+      return dash.textContent("#shot-result");
+    };
+
+    check("screenshot checker: it has a file picker for PNG and JPEG only, a language list, and no capture or camera", (await dash.getAttribute("#shot-file", "accept")) === "image/png,image/jpeg" && (await dash.getAttribute("#shot-file", "capture")) === null && (await dash.$$eval("#shot-language option", (o) => o.length)) === 4);
+    check("screenshot checker: it says images stay on the device, nothing is captured automatically, and not to trust a payment screenshot alone", /never saved or sent anywhere/.test(await dash.textContent("#screenshot-check")) && /never takes screenshots by itself/.test(await dash.textContent("#screenshot-check")) && /Do not trust a payment screenshot alone/.test(await dash.textContent("#screenshot-check")));
+    check("screenshot checker: before an image is chosen, reading is disabled and nothing is claimed", (await dash.isDisabled("#shot-analyze")) && (await dash.isDisabled("#shot-remove")) && (await dash.textContent("#shot-result")).trim() === "");
+
+    // file checks
+    await dash.setInputFiles("#shot-file", { name: "notes.png", mimeType: "image/png", buffer: Buffer.from("this is plain text renamed to look like a png file, nothing more") });
+    await sleep(400);
+    check("screenshot checker: a file that is not really a PNG or JPEG is refused, even if renamed", /PNG and JPEG screenshots only/.test(await dash.textContent("#shot-problem")) && (await dash.isHidden("#shot-preview")) && (await dash.isDisabled("#shot-analyze")));
+    await dash.setInputFiles("#shot-file", { name: "animation.gif", mimeType: "image/gif", buffer: Buffer.from("GIF89a" + "x".repeat(200)) });
+    await sleep(300);
+    check("screenshot checker: a GIF is refused", /PNG and JPEG screenshots only/.test(await dash.textContent("#shot-problem")));
+    await dash.setInputFiles("#shot-file", { name: "big.png", mimeType: "image/png", buffer: Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(9 * 1024 * 1024)]) });
+    await sleep(500);
+    check("screenshot checker: an oversized image is refused before it is read", /under 8\.0 MB/.test(await dash.textContent("#shot-problem")) && (await dash.isHidden("#shot-preview")));
+    await dash.setInputFiles("#shot-file", { name: "empty.png", mimeType: "image/png", buffer: Buffer.alloc(0) });
+    await sleep(300);
+    check("screenshot checker: an empty file is refused", /empty/i.test(await dash.textContent("#shot-problem")) && (await dash.isDisabled("#shot-analyze")));
+    await dash.setInputFiles("#shot-file", []);
+    await sleep(300);
+    check("screenshot checker: choosing nothing leaves nothing to read", (await dash.isDisabled("#shot-analyze")) && (await dash.isHidden("#shot-preview")));
+
+    // a real PNG scam screenshot, read by the bundled offline engine
+    const scamPng = await makeImage("prevenza-scam.png", ["Dear customer, your SBI KYC is pending.", "Your account will be blocked today.", "Please share the OTP you just received."]);
+    await dash.setInputFiles("#shot-file", scamPng);
+    await sleep(500);
+    check("screenshot checker: a valid PNG is accepted, previewed with a text alternative, and can be removed", (await dash.isVisible("#shot-img")) && (await dash.getAttribute("#shot-img", "alt")) === "Preview of the screenshot you chose" && (await dash.isEnabled("#shot-analyze")) && (await dash.isEnabled("#shot-remove")) && /PNG/.test(await dash.textContent("#shot-file-name")));
+    const t0 = Date.now();
+    let shotOut = await readShot(scamPng, "eng");
+    const seconds = ((Date.now() - t0) / 1000).toFixed(1);
+    const extracted = await dash.inputValue("#shot-text");
+    check("screenshot checker: the bundled engine read the text on the device (English PNG)", /kyc/i.test(extracted) && /otp/i.test(extracted) && /blocked/i.test(extracted), seconds + " s, " + extracted.length + " characters");
+    check("screenshot checker: it showed a progress bar while reading, and hides it afterwards", (await dash.evaluate(() => window.__sawProgress)) === true && (await dash.isHidden("#shot-progress-wrap")));
+    check("screenshot checker: the text that was read is shown to the user and can be corrected", (await dash.isVisible("#shot-text")) && (await dash.isEditable("#shot-text")));
+    check("screenshot checker: an English scam screenshot is High or Critical risk with the scam type named", /(High|Critical) risk/.test(shotOut) && /Looks like: /.test(shotOut) && /Warning level \d+ of 100/.test(shotOut) && /not the probability/i.test(shotOut));
+    check("screenshot checker: risk has a label AND a shape, and suspicious phrases are marked in the text", (await dash.$("#shot-result .pill-danger, #shot-result .pill-critical")) !== null && (await dash.$$eval("#shot-result mark.hit", (m) => m.length)) >= 2);
+    check("screenshot checker: reasons come from the signs found and name their source", (await dash.$$eval("#shot-result .reasons li", (l) => l.length)) >= 2 && /Screenshot text/.test(await dash.textContent("#shot-result .reasons")) && (await dash.$$eval("#shot-result .actions-list li", (l) => l.length)) >= 1);
+    check("screenshot checker: after reading, the image data is released (choose the file again to read it again)", await dash.isDisabled("#shot-analyze"));
+    check("screenshot checker: the reader's worker has ended and nothing external was requested", (await dash.evaluate(() => 0)) === 0 && dash.workers().length === 0 && dashRequests.filter((u) => !u.startsWith("chrome-extension://") && !u.startsWith("data:")).length === externalBefore);
+    await dash.screenshot({ path: path.join(SHOTS, "13-screenshot-checker.png"), fullPage: true });
+
+    // receipt, fake confirmation, OTP request, JPEG
+    const receipt = await makeImage("prevenza-receipt.jpg", ["Payment successful", "Paid to Corner Shop", "Rs 250.00", "UPI Ref No: 412345678901", "shop@ybl"], { mime: "image/jpeg" });
+    shotOut = await readShot(receipt, "eng");
+    check("screenshot checker: a valid JPEG payment receipt is read and is not called a scam", /Low risk|Medium risk/.test(shotOut) && !/High risk|Critical risk/.test(shotOut), (await dash.inputValue("#shot-text")).replace(/\s+/g, " ").slice(0, 80));
+    check("screenshot checker: a payment receipt always carries 'do not trust a payment screenshot alone' and says nothing was verified", /Do not trust a payment screenshot alone\. Verify the payment in your own bank or UPI application\./.test(shotOut) && /cannot check whether a receipt is genuine/.test(shotOut) && /None of it was verified/.test(shotOut));
+    const fake = await makeImage("prevenza-fake-confirm.png", ["Payment done sir, screenshot attached.", "Please send the parcel today.", "I have already paid."]);
+    shotOut = await readShot(fake, "eng");
+    check("screenshot checker: fake payment confirmation wording (release goods on a screenshot) is flagged with the receipt warning", /Asks you to hand over goods/.test(shotOut) && /Do not trust a payment screenshot alone/.test(shotOut) && /Medium risk|High risk|Critical risk/.test(shotOut));
+    const pin = await makeImage("prevenza-pin.png", ["Hello sir. Please share your UPI PIN", "and OTP to receive the refund."]);
+    shotOut = await readShot(pin, "eng");
+    check("screenshot checker: an OTP or UPI PIN request is flagged with the 'never share' advice", /OTP, PIN or password request|Asks you to share an OTP/.test(shotOut) && /Never share your OTP/i.test(shotOut));
+
+    // other languages
+    const hindi = await makeImage("prevenza-hindi.png", ["\u092a\u094d\u0930\u093f\u092f \u0917\u094d\u0930\u093e\u0939\u0915, \u0906\u092a\u0915\u093e \u0915\u0947\u0935\u093e\u0908\u0938\u0940 \u0905\u092a\u0921\u0947\u091f \u0905\u0927\u0942\u0930\u093e \u0939\u0948\u0964", "\u0906\u092a\u0915\u093e \u0916\u093e\u0924\u093e \u0906\u091c \u092c\u0902\u0926 \u0939\u094b \u091c\u093e\u090f\u0917\u093e\u0964", "\u0915\u0943\u092a\u092f\u093e \u0905\u092a\u0928\u093e \u0913\u091f\u0940\u092a\u0940 \u092c\u0924\u093e\u090f\u0902\u0964"], { font: "32px Nirmala UI" });
+    shotOut = await readShot(hindi, "hin");
+    check("screenshot checker (Hindi script): the text is read and the scam is found", /(High|Critical) risk/.test(shotOut) && /Fake KYC update|OTP, PIN or password request/.test(shotOut) && /Hindi/.test(shotOut), (await dash.inputValue("#shot-text")).replace(/\s+/g, " ").slice(0, 60));
+    const tamil = await makeImage("prevenza-tamil.png", ["\u0b85\u0ba9\u0bcd\u0baa\u0bc1\u0bb3\u0bcd\u0bb3 \u0bb5\u0bbe\u0b9f\u0bbf\u0b95\u0bcd\u0b95\u0bc8\u0baf\u0bbe\u0bb3\u0bb0\u0bc7, \u0b89\u0b99\u0bcd\u0b95\u0bb3\u0bcd KYC \u0baa\u0bc1\u0ba4\u0bc1\u0baa\u0bcd\u0baa\u0bbf\u0b95\u0bcd\u0b95\u0baa\u0bcd\u0baa\u0b9f\u0bb5\u0bbf\u0bb2\u0bcd\u0bb2\u0bc8.", "\u0b89\u0b99\u0bcd\u0b95\u0bb3\u0bcd \u0b95\u0ba3\u0b95\u0bcd\u0b95\u0bc1 \u0b87\u0ba9\u0bcd\u0bb1\u0bc1 \u0bae\u0bc1\u0b9f\u0b95\u0bcd\u0b95\u0baa\u0bcd\u0baa\u0b9f\u0bc1\u0bae\u0bcd.", "\u0b89\u0b99\u0bcd\u0b95\u0bb3\u0bcd \u0b93\u0b9f\u0bbf\u0baa\u0bbf \u0b8e\u0ba3\u0bcd\u0ba3\u0bc8 \u0b9a\u0bca\u0bb2\u0bcd\u0bb2\u0bc1\u0b99\u0bcd\u0b95\u0bb3\u0bcd."], { font: "32px Nirmala UI", width: 1300 });
+    shotOut = await readShot(tamil, "tam");
+    check("screenshot checker (Tamil script): the text is read and the scam is found", /(High|Critical) risk/.test(shotOut) && /Fake KYC update|OTP, PIN or password request|Fake account suspension/.test(shotOut) && /Tamil/.test(shotOut), (await dash.inputValue("#shot-text")).replace(/\s+/g, " ").slice(0, 60));
+    const hinglish = await makeImage("prevenza-hinglish.png", ["Aapka KYC update pending hai.", "Aapka account band ho jayega.", "Turant link par click karo."]);
+    shotOut = await readShot(hinglish, "eng");
+    check("screenshot checker (Hinglish): English-letter Hindi is read and the scam is found", /Medium risk|High risk|Critical risk/.test(shotOut) && /Fake KYC update|Fake account suspension/.test(shotOut) && /Hinglish/.test(shotOut), (await dash.inputValue("#shot-text")).replace(/\s+/g, " ").slice(0, 60));
+
+    // images the reader cannot use
+    const noise = await makeImage("prevenza-noise.png", [], { noise: true });
+    shotOut = await readShot(noise, "eng");
+    check("screenshot checker: an unreadable image is reported as inconclusive, never as safe, and the user can try another", /Inconclusive/.test(shotOut) && !/Low risk/.test(shotOut) && /Nothing was marked safe/.test(shotOut) && (await dash.isEnabled("#shot-remove")), await dash.inputValue("#shot-text"));
+    const blank = await makeImage("prevenza-blank.png", [], { blank: true });
+    shotOut = await readShot(blank, "eng");
+    check("screenshot checker: an image with no text says so and is not called safe", /No readable text was found/.test(shotOut) && /Inconclusive/.test(shotOut) && !/Low risk/.test(shotOut));
+
+    // correcting the text, removing, clearing, privacy
+    shotOut = await readShot(scamPng, "eng");
+    await dash.fill("#shot-text", "ZQX-private-marker-9921 Please share your OTP right now");
+    await dash.click("#shot-recheck");
+    await sleep(600);
+    shotOut = await dash.textContent("#shot-result");
+    check("screenshot checker: the user can correct the text and check it again, without the image", /OTP, PIN or password request|Asks you to share an OTP/.test(shotOut) && /(Medium|High|Critical) risk/.test(shotOut));
+    const shotStored = JSON.stringify(await sw.evaluate(() => chrome.storage.local.get(null)));
+    check("screenshot checker: no image, text or result is stored anywhere", !/ZQX|private-marker|kyc|otp|payment|corner shop|data:image/i.test(shotStored), "storage keys: " + Object.keys(JSON.parse(shotStored)).join(", "));
+    const idb = await dash.evaluate(async () => (indexedDB.databases ? (await indexedDB.databases()).length : 0));
+    check("screenshot checker: nothing was written to the browser's database cache either", idb === 0, "databases: " + idb);
+    const badShot = await dash.evaluate(() => chrome.runtime.sendMessage({ type: "prevenza/analyze-screenshot", payload: { text: "hi", image: "data:image/png;base64,AAAA" } }));
+    check("screenshot checker: the background refuses an image or any extra field, only text is accepted", badShot.ok === false && badShot.error === "bad-payload");
+    await dash.setInputFiles("#shot-file", scamPng);
+    await sleep(400);
+    await dash.click("#shot-remove");
+    check("screenshot checker: 'Remove image' clears the picture and the file choice", (await dash.isHidden("#shot-preview")) && (await dash.getAttribute("#shot-img", "src")) === null && (await dash.inputValue("#shot-file")) === "" && (await dash.isDisabled("#shot-analyze")));
+    await dash.click("#shot-clear");
+    check("screenshot checker: 'Clear all' empties the text, the result and the messages", (await dash.isHidden("#shot-text-wrap")) && (await dash.inputValue("#shot-text")) === "" && (await dash.textContent("#shot-result")).trim() === "" && (await dash.isHidden("#shot-problem")));
+    await dash.evaluate(() => chrome.runtime.sendMessage({ type: "prevenza/update-settings", payload: { settings: { enabled: false } } }));
+    await dash.evaluate(() => { document.getElementById("shot-text-wrap").hidden = false; });
+    await dash.fill("#shot-text", "Please share your OTP now");
+    await dash.click("#shot-recheck");
+    await sleep(500);
+    check("screenshot checker: protection off means nothing is analysed", /Protection is off/.test(await dash.textContent("#shot-result")) && (await dash.$("#shot-result .pill")) === null);
+    await dash.evaluate(() => chrome.runtime.sendMessage({ type: "prevenza/update-settings", payload: { settings: { enabled: true } } }));
+    await dash.click("#shot-clear");
+
+    // layout, elder mode (already on), accessibility
+    await dash.setViewportSize({ width: 390, height: 844 });
+    await readShot(scamPng, "eng");
+    check("screenshot checker: a result with a preview does not scroll sideways on a phone-sized window", (await dash.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)) === false);
+    const shotSizes = await dash.evaluate(() => ["shot-file-label", "shot-language", "shot-analyze", "shot-remove", "shot-clear", "shot-recheck"].map((i) => document.getElementById(i).getBoundingClientRect().height));
+    check("screenshot checker: every control is at least 44px tall", shotSizes.every((h) => h >= 44), shotSizes.join(","));
+    check("screenshot checker: the progress bar and the status text are linked, and the file picker is reachable by keyboard", (await dash.getAttribute("#shot-progress", "aria-labelledby")) === "shot-status" && (await dash.getAttribute("#shot-status", "role")) === "status" && (await dash.evaluate(() => document.getElementById("shot-file").tabIndex)) === 0);
+    await dash.screenshot({ path: path.join(SHOTS, "14-screenshot-checker-mobile.png"), fullPage: true });
+    await dash.setViewportSize({ width: 1100, height: 900 });
+    await dash.click("#shot-clear");
+
+    // The Hindi reading model makes the engine print harmless "Parameter not found" notices to the console. Keep every other
+    // error visible: this block's errors are checked here, and only those notices are set aside from the final run-wide check.
+    const ocrErrors = errors.splice(ocrErrorsBefore);
+    check("screenshot checker: reading produced no errors other than the engine's own harmless notices", ocrErrors.every((e) => /Warning: Parameter not found/.test(e)), ocrErrors.filter((e) => !/Warning: Parameter not found/.test(e)).slice(0, 2).map((e) => e.slice(0, 120)).join(" ; "));
+    check("screenshot checker: reading made no network request at all (the engine and language data are bundled)", dashRequests.filter((u) => !u.startsWith("chrome-extension://") && !u.startsWith("data:")).length === externalBefore);
+
     // The popup on a real website tab (the page is served from a look-alike name by the test browser, no real network)
     const scam = await ctx.newPage();
     watch(scam, "look-alike site");

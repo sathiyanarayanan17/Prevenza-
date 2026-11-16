@@ -6,10 +6,15 @@
   "scripts": {
     "icons": "node scripts/make-icons.js",
     "test": "node --test \"test/*.test.js\"",
-    "test:e2e": "node e2e/run.js"
+    "test:e2e": "node e2e/run.js",
+    "ocr:assets": "node scripts/make-ocr-assets.js"
   },
   "devDependencies": {
+    "@tesseract.js-data/eng": "1.0.0",
+    "@tesseract.js-data/hin": "1.0.0",
+    "@tesseract.js-data/tam": "1.0.0",
     "fast-check": "4.10.2",
-    "playwright-core": "1.65.0"
+    "playwright-core": "1.65.0",
+    "tesseract.js": "7.0.0"
   }
 }

@@ -34,6 +34,7 @@
     [MSG.CHECK_URL]: ["page"],
     [MSG.SCAN_MESSAGE]: ["page"],
     [MSG.ANALYZE_UPI]: ["page"],
+    [MSG.ANALYZE_SCREENSHOT]: ["page"],
     [MSG.CONTENT_READY]: ["content"],
   });
 
@@ -44,6 +45,8 @@
   const MESSAGE_FIELDS = ["text", "language"];
   // The UPI analyzer accepts text fields only, never a PIN, an OTP or anything else.
   const UPI_FIELDS = ["upiId", "name", "amount", "reason", "qrText"];
+  // The screenshot analyzer accepts the text that was read, a language choice and the reader's confidence. Never the image.
+  const SHOT_FIELDS = ["text", "language", "confidence"];
   const MAX_URL_INPUT = 2048;
   const MAX_HOSTNAME_INPUT = 253;
 
@@ -70,6 +73,7 @@
     const messageScan = deps.messageScan || null;
     const riskEngine = deps.riskEngine || null;
     const upiAnalyze = deps.upiAnalyze || null;
+    const screenshot = deps.screenshot || null;
     const broadcast = deps.broadcast || (async () => undefined);
     const now = deps.now || (() => Date.now());
     const extOrigin = "chrome-extension://" + runtimeId + "/";
@@ -225,6 +229,59 @@
               checked: upi.checked,
               linksChecked: links.checked,
               cannotStop: upiAnalyze.CANNOT_STOP,
+            },
+          };
+        }
+
+        // Text that OCR read from a screenshot the user chose. The image itself never reaches the background worker.
+        // Analysed in memory and never stored. Poor or empty reading is reported as "could not tell", never as safe.
+        case MSG.ANALYZE_SCREENSHOT: {
+          const p = message.payload;
+          if (!H.isPlainObject(p) || !Object.keys(p).every((k) => SHOT_FIELDS.includes(k))) return { ok: false, error: "bad-payload" };
+          if (typeof p.text !== "string" || p.text.length > H.SCREENSHOT_LIMITS.maxInput) return { ok: false, error: "bad-payload" };
+          if (p.language !== undefined && !H.SCAN_LANGUAGES.some((l) => l.id === p.language)) return { ok: false, error: "bad-payload" };
+          if (p.confidence !== undefined && p.confidence !== null && !(typeof p.confidence === "number" && Number.isFinite(p.confidence) && p.confidence >= 0 && p.confidence <= 100)) {
+            return { ok: false, error: "bad-payload" };
+          }
+          if (!messageScan || !riskEngine || !screenshot) return { ok: false, error: "unavailable" };
+          const settings = await store.getSettings();
+          if (!settings.enabled) return { ok: true, skipped: "protection-off" };
+
+          const quality = screenshot.assessOcrQuality({ text: p.text, confidence: p.confidence === undefined ? null : p.confidence });
+          if (quality.level === "none") {
+            const assessment = riskEngine.assess({ screenshot: { unavailable: true, reason: "No readable text was found in the image." } });
+            return { ok: true, result: { ok: true, readable: false, quality, assessment, receipt: null } };
+          }
+          const scan = messageScan.scanMessage(p.text, { language: p.language || "auto", screenshot: true });
+          if (!scan.ok) return { ok: true, result: { ok: false, error: scan.error, message: scan.message } };
+          const receipt = screenshot.receiptFacts(p.text);
+          const hasWarning = scan.indicators.some((i) => i.weight > 0);
+          let assessment;
+          let links = { module: undefined, checked: 0 };
+          if (quality.level === "poor" && !hasWarning) {
+            assessment = riskEngine.assess({ screenshot: { unavailable: true, reason: "The text in the image was too hard to read to tell." } });
+          } else {
+            links = linkEvidence(p.text);
+            assessment = riskEngine.assess({ screenshot: { ok: true, indicators: scan.indicators }, url: links.module });
+          }
+          const releaseGoods = scan.indicators.some((i) => i.id === "msg_release_goods_request");
+          return {
+            ok: true,
+            result: {
+              ok: true,
+              readable: true,
+              quality,
+              assessment,
+              language: scan.language,
+              languageNote: scan.languageNote,
+              highlights: scan.highlights,
+              primaryCategory: scan.primaryCategory,
+              otherCategories: scan.otherCategories,
+              truncated: scan.truncated,
+              analysedLength: scan.analysedLength,
+              receipt,
+              receiptWarning: receipt.looksLikeReceipt || releaseGoods ? { text: screenshot.RECEIPT_WARNING, caveat: screenshot.RECEIPT_CAVEAT } : null,
+              linksChecked: links.checked,
             },
           };
         }

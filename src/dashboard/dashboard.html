@@ -116,9 +116,43 @@
       <div id="upi-result" class="msg-result" aria-live="polite"></div>
     </section>
 
+    <section class="card" aria-labelledby="shot-h" id="screenshot-check">
+      <h2 id="shot-h">Check a screenshot</h2>
+      <p class="muted small">Choose a screenshot you saved yourself, such as a chat or a payment receipt. Prevenza reads the text on your device. The image and the text are never saved or sent anywhere. Prevenza cannot see WhatsApp, your bank or your UPI app, and it never takes screenshots by itself.</p>
+      <p class="notice" role="note"><strong>Do not trust a payment screenshot alone.</strong> Verify the payment in your own bank or UPI application.</p>
+      <div class="shot-pick">
+        <input type="file" id="shot-file" class="visually-hidden" accept="image/png,image/jpeg">
+        <label class="btn btn-primary" for="shot-file" id="shot-file-label">Choose a screenshot</label>
+        <span class="muted small" id="shot-file-name">No image chosen. PNG or JPEG, up to 8 MB.</span>
+      </div>
+      <div class="msg-controls">
+        <label for="shot-language">Language in the picture</label>
+        <select id="shot-language"></select>
+      </div>
+      <div class="shot-preview" id="shot-preview" hidden>
+        <img id="shot-img" alt="Preview of the screenshot you chose">
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" type="button" id="shot-analyze" disabled>Read and check screenshot</button>
+        <button class="btn" type="button" id="shot-remove" disabled>Remove image</button>
+        <button class="btn" type="button" id="shot-clear">Clear all</button>
+      </div>
+      <div class="progress-row" id="shot-progress-wrap" hidden>
+        <progress id="shot-progress" max="100" value="0" aria-labelledby="shot-status"></progress>
+        <span class="muted small" id="shot-status" role="status"></span>
+      </div>
+      <p class="problem" id="shot-problem" role="alert" hidden></p>
+      <div class="field wide" id="shot-text-wrap" hidden>
+        <label for="shot-text">Text found in the screenshot (you can correct it)</label>
+        <textarea id="shot-text" rows="6" maxlength="5000" spellcheck="false" autocomplete="off"></textarea>
+        <div class="btn-row"><button class="btn" type="button" id="shot-recheck">Check this text again</button></div>
+      </div>
+      <div id="shot-result" class="msg-result" aria-live="polite"></div>
+    </section>
+
     <section class="card" aria-labelledby="road-h">
       <h2 id="road-h">What is coming</h2>
-      <p class="muted small">Link checks, message checks and UPI payment checks are ready. These features are planned and are not active yet.</p>
+      <p class="muted small">Link checks, message checks, UPI payment checks and screenshot checks are ready. These features are planned and are not active yet.</p>
       <ul class="road" id="road"></ul>
     </section>
   </main>
@@ -128,10 +162,13 @@
   <script src="../shared/url-rules.js"></script>
   <script src="../shared/url-intel.js"></script>
   <script src="../shared/mascot.js"></script>
+  <script src="../shared/screenshot.js"></script>
   <script src="../shared/messaging.js"></script>
   <script src="../shared/ui.js"></script>
   <script src="dashboard.js"></script>
   <script src="message-check.js"></script>
   <script src="upi-check.js"></script>
+  <script src="ocr-runner.js"></script>
+  <script src="screenshot-check.js"></script>
 </body>
 </html>

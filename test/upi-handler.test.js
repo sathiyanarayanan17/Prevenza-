@@ -175,7 +175,7 @@ test("the form has no field for a PIN or an OTP, and says never to type one", ()
   const fs = require("node:fs");
   const path = require("node:path");
   const html = fs.readFileSync(path.join(__dirname, "..", "src", "dashboard", "dashboard.html"), "utf8");
-  const section = html.slice(html.indexOf('id="upi-check"'), html.indexOf('id="road-h"'));
+  const section = html.slice(html.indexOf('id="upi-check"'), html.indexOf('id="screenshot-check"'));
   assert.match(section, /Never type your UPI PIN or an OTP here/);
   assert.doesNotMatch(section, /type="password"|name="[^"]*(pin|otp)|id="[^"]*(pin|otp)/i);
   assert.match(section, /does not use your camera/i);

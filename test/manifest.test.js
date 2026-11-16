@@ -76,7 +76,11 @@ test("content security policy is strict and blocks network access", () => {
   assert.match(csp, /script-src 'self'/);
   assert.match(csp, /connect-src 'none'/);
   assert.match(csp, /object-src 'none'/);
-  assert.doesNotMatch(csp, /unsafe-eval|unsafe-inline|https?:|\*/);
+  // Step 6: the offline OCR engine is WebAssembly, which needs 'wasm-unsafe-eval'. That keyword allows compiling WebAssembly
+  // only. JavaScript eval, inline scripts and every remote source stay forbidden, so the strict check applies to the rest.
+  assert.equal((csp.match(/'wasm-unsafe-eval'/g) || []).length, 1, "'wasm-unsafe-eval' may appear once");
+  assert.match(csp, /script-src 'self' 'wasm-unsafe-eval';/, "and only in script-src");
+  assert.doesNotMatch(csp.replace(/'wasm-unsafe-eval'/g, ""), /unsafe-eval|unsafe-inline|https?:|\*/);
 });
 
 test("extension pages need no inline scripts, inline handlers or inline styles (CSP-safe)", () => {

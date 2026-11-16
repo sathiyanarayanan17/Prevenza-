@@ -47,6 +47,7 @@
   }
   const COMPILED = compileAll(R.SIGNALS);
   const COMPILED_PAYMENT = compileAll(R.PAYMENT_SIGNALS);
+  const COMPILED_RECEIPT = compileAll(R.RECEIPT_SIGNALS);
 
   // ---------------------------------------------------------------- normalising text
   /**
@@ -244,9 +245,11 @@
       const points = new Map();
       // opts.payment: the text is the reason for a UPI payment (Step 5). Payment-only signals are added, and the two
       // "send money" signals are left out because the payment itself is the request.
-      const active = options.payment === true
-        ? COMPILED.filter((cs) => !R.PAYMENT_CONTEXT_SKIP.includes(cs.sig.id)).concat(COMPILED_PAYMENT)
-        : COMPILED;
+      // opts.screenshot: the text was read from a screenshot (Step 6). Payment and receipt signals are added; "send money"
+      // stays on, because a chat screenshot asking for money is exactly what should be noticed.
+      let active = COMPILED;
+      if (options.payment === true) active = COMPILED.filter((cs) => !R.PAYMENT_CONTEXT_SKIP.includes(cs.sig.id)).concat(COMPILED_PAYMENT);
+      else if (options.screenshot === true) active = COMPILED.concat(COMPILED_PAYMENT, COMPILED_RECEIPT);
       for (const cs of active) {
         const hits = [];
         for (const name of SETS) {

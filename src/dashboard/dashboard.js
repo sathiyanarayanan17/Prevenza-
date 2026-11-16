@@ -10,11 +10,13 @@
     ["Smart URL checks", "Ready"],
     ["Scam message checker (English, Hindi, Tamil, Hinglish)", "Ready"],
     ["UPI payment analyzer", "Ready"],
-    ["Scam risk score for links and pages", "Planned"],
-    ["Payment screenshot reader", "Planned"],
-    ["Prevy emergency help and safety button", "Planned"],
+    ["Screenshot reader (offline text reading)", "Ready"],
     ["Prevy warnings that adapt to every check", "Planned"],
+    ["Risk score and warning on the page you are visiting", "Planned"],
+    ["Prevy emergency help and safety button", "Planned"],
+    ["Whole interface in Hindi and Tamil", "Planned"],
     ["Community scam alerts", "Planned"],
+    ["Optional online checks, off by default", "Planned"],
     ["Warning pop-up before a risky page", "Planned"],
     ["Elder mode", "Ready"],
   ];
@@ -57,7 +59,7 @@
     $("stat-last").textContent = H.ui.formatDate(stats.lastActiveAt);
     $("stat-installed").textContent = stats.installedAt ? "Installed " + H.ui.formatDate(stats.installedAt) : "";
     $("hero-sub").textContent = settings.enabled
-      ? "Prevenza is on and keeping watch quietly. Link checks and the message checker are ready."
+      ? "Prevenza is on and keeping watch quietly. You can check links, messages, UPI payments and screenshots below."
       : "Protection is off. Turn it on in Settings.";
   }
 

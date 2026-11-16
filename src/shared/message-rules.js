@@ -688,6 +688,61 @@
   // In a UPI payment the payment itself is the request, so "send money" and "pay to this ID" would fire on every payment.
   const PAYMENT_CONTEXT_SKIP = Object.freeze(["msg_money_request", "msg_payment_instruction"]);
 
+  // ---------------------------------------------------------------- extra signals used only for screenshot text (Step 6)
+  // A screenshot of a chat or a payment receipt is read with the same scanner, plus these receipt-related signals.
+  // A screenshot alone can never prove that money arrived, so the first signal is only a minor note and the second is the real warning.
+  const RECEIPT_SIGNALS = Object.freeze([
+    {
+      id: "msg_payment_screenshot_claim",
+      categories: [],
+      weight: 1,
+      label: "The screenshot says a payment was successful",
+      why: "A screenshot can be edited or faked, and it cannot show that money reached a bank account. Check the payment in your own bank or UPI app.",
+      patterns: {
+        en: [
+          String.raw`\b(?:payment|transaction|transfer)\s+(?:successful|successfully|completed|done|success)\b`,
+          String.raw`\b(?:paid|sent|transferred)\s+successfully\b`,
+          String.raw`\bmoney\s+(?:sent|transferred)\b`,
+        ],
+        hi: [String.raw`(?:भुगतान|पेमेंट|ट्रांजैक्शन|लेनदेन)\s*(?:सफल|पूरा|हो\s*गया)`],
+        ta: [String.raw`(?:பணம்|பேமெண்ட்|பரிவர்த்தனை)\s*(?:வெற்றிகரமாக|செலுத்தப்பட்டது|முடிந்தது)`, String.raw`வெற்றிகரமாக\s*(?:செலுத்த|அனுப்ப)`],
+        hr: [String.raw`\b(?:payment|paisa|paise|transaction)\s+(?:safal|successful|ho\s+gaya|kar\s+diya|bhej\s+diya)\b`],
+        tr: [String.raw`\b(?:payment|panam)\s+(?:successful|pannitten|pannitean|anuppitten|aagividhu)\b`],
+      },
+    },
+    {
+      id: "msg_release_goods_request",
+      categories: ["payment_instruction"],
+      weight: 3.5,
+      label: "Asks you to hand over goods or services because of a payment screenshot",
+      why: "Scammers send a faked payment screenshot and ask you to send the goods straight away. Release nothing until the money shows in your own bank or UPI app.",
+      negate: { before: NEG_BEFORE_SECRET, after: NEG_AFTER_SECRET, weight: 0 },
+      patterns: {
+        en: [
+          String.raw`\b(?:payment|paid|transferred|sent)\b${g(60)}\b(?:screenshot|receipt|proof)\b${g(60)}\b(?:send|dispatch|deliver|release|ship|hand\s+over|give)\b`,
+          String.raw`\b(?:send|dispatch|deliver|release|ship|hand\s+over)\b${g(40)}\b(?:goods|item|items|product|order|parcel|vehicle|car|bike|phone|material)\b${g(60)}\b(?:i\s+have\s+paid|payment\s+(?:done|sent|made|successful)|already\s+paid|paid)\b`,
+          String.raw`\bpayment\s+(?:done|made|sent|successful)\b${g(50)}\b(?:please\s+)?(?:send|dispatch|deliver|release|ship)\b`,
+          String.raw`\b(?:screenshot|receipt|proof)\b${g(40)}\b(?:attached|sent|above|below)\b${g(60)}\b(?:send|dispatch|deliver|release|ship)\b`,
+          // Chats often put "payment done", "screenshot attached" and "please send" in separate sentences, so these two may cross
+          // a full stop. They need "please", and stay within 80 characters.
+          String.raw`\bpayment\s+(?:done|made|sent|successful)\b[\s\S]{0,80}?\b(?:please|pls|kindly)\s+(?:send|dispatch|deliver|release|ship)\b`,
+          String.raw`\b(?:i\s+have\s+(?:already\s+)?paid|already\s+paid)\b[\s\S]{0,60}?\b(?:please|pls|kindly)\s+(?:send|dispatch|deliver|release|ship)\b`,
+          String.raw`\b(?:please|pls|kindly)\s+(?:send|dispatch|deliver|release|ship)\b[\s\S]{0,60}?\b(?:i\s+have\s+(?:already\s+)?paid|already\s+paid)\b`,
+        ],
+        hi: [
+          String.raw`(?:भुगतान|पेमेंट|पैसे)\s*(?:कर\s*दिया|हो\s*गया|भेज\s*दिया)${g(60)}(?:सामान|माल|प्रोडक्ट|ऑर्डर|पार्सल)${g(40)}(?:भेज|दे\s*दो|डिस्पैच|रिलीज)`,
+          String.raw`स्क्रीनशॉट${g(60)}(?:सामान|माल|ऑर्डर)${g(40)}(?:भेज|रिलीज|दे\s*दो)`,
+        ],
+        ta: [
+          String.raw`(?:பணம்|பேமெண்ட்)\s*(?:செலுத்திவிட்டேன்|அனுப்பிவிட்டேன்|செலுத்தப்பட்டது)${g(60)}(?:பொருள|ஆர்டர|பார்சல)${g(40)}(?:அனுப்ப|கொடு)`,
+          String.raw`ஸ்கிரீன்ஷாட்${g(60)}(?:பொருள|ஆர்டர|பார்சல)${g(40)}(?:அனுப்ப|கொடு)`,
+        ],
+        hr: [String.raw`\b(?:payment|paisa|paise)\s+(?:kar\s+diya|ho\s+gaya|bhej\s+diya|done)\b${g(60)}\b(?:saman|maal|order|parcel|product)\b${g(40)}\b(?:bhej\w*|de\s*do|dispatch|release)\b`],
+        tr: [String.raw`\b(?:payment|panam)\s+(?:pannitten|pannitean|anuppitten|done)\b${g(60)}\b(?:order|parcel|product|porul)\b${g(40)}\b(?:anupp\w*|kodu\w*|dispatch)\b`],
+      },
+    },
+  ]);
+
   // ---------------------------------------------------------------- scam categories shown to the user
   const CATEGORIES = Object.freeze([
     Object.freeze({ id: "fake_kyc", label: "Fake KYC update" }),
@@ -758,5 +813,5 @@
     negateWindowAfter: 60,
   });
 
-  return Object.freeze({ SIGNALS, PAYMENT_SIGNALS, PAYMENT_CONTEXT_SKIP, CATEGORIES, LANGUAGE_LABELS, HINGLISH_WORDS, TAMIL_ROMAN_WORDS, ENGLISH_WORDS, CONFUSABLES, LINK_ENDINGS, LIMITS });
+  return Object.freeze({ SIGNALS, PAYMENT_SIGNALS, PAYMENT_CONTEXT_SKIP, RECEIPT_SIGNALS, CATEGORIES, LANGUAGE_LABELS, HINGLISH_WORDS, TAMIL_ROMAN_WORDS, ENGLISH_WORDS, CONFUSABLES, LINK_ENDINGS, LIMITS });
 });

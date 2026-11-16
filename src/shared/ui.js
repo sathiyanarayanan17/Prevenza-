@@ -104,5 +104,33 @@
     }
   }
 
-  H.ui = { placeMascots, applyPrefs, toast, formatDate, setRiskPill, setCategoryPill, renderIndicators };
+  /**
+   * Writes text into a container with the flagged phrases marked: bold, underlined and tinted, plus a hidden label for
+   * screen readers, so the mark never depends on colour alone. highlights are { start, end } positions in text.
+   * Text and DOM nodes only, never HTML. Returns the distinct phrases that were marked (at most 8), shortened.
+   */
+  function renderMarked(container, text, highlights) {
+    container.textContent = "";
+    const phrases = [];
+    let pos = 0;
+    (Array.isArray(highlights) ? highlights : []).forEach((h) => {
+      if (!h || !Number.isInteger(h.start) || !Number.isInteger(h.end) || h.start < pos || h.end > text.length || h.end <= h.start) return;
+      if (h.start > pos) container.appendChild(document.createTextNode(text.slice(pos, h.start)));
+      const phrase = text.slice(h.start, h.end);
+      const mark = document.createElement("mark");
+      mark.className = "hit";
+      const hidden = document.createElement("span");
+      hidden.className = "visually-hidden";
+      hidden.textContent = "Flagged phrase: ";
+      mark.appendChild(hidden);
+      mark.appendChild(document.createTextNode(phrase));
+      container.appendChild(mark);
+      if (!phrases.includes(phrase) && phrases.length < 8) phrases.push(phrase.length > 90 ? phrase.slice(0, 90) + "..." : phrase);
+      pos = h.end;
+    });
+    if (pos < text.length) container.appendChild(document.createTextNode(text.slice(pos)));
+    return phrases;
+  }
+
+  H.ui = { placeMascots, applyPrefs, toast, formatDate, setRiskPill, setCategoryPill, renderIndicators, renderMarked };
 })();

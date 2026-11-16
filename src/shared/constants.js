@@ -34,7 +34,11 @@
     CHECK_URL: "prevenza/check-url", // dashboard -> background: an address the user typed or pasted
     SCAN_MESSAGE: "prevenza/scan-message", // dashboard -> background: text the user pasted into the message checker
     ANALYZE_UPI: "prevenza/analyze-upi", // dashboard -> background: payment details the user typed into the UPI analyzer
+    ANALYZE_SCREENSHOT: "prevenza/analyze-screenshot", // dashboard -> background: text that OCR read from a screenshot the user chose
   });
+
+  // The screenshot analyzer accepts only the text that was read (never the image) and the reader's own confidence score.
+  const SCREENSHOT_LIMITS = Object.freeze({ maxInput: 20000 });
 
   // The UPI analyzer accepts only these fields, each as text, with these length limits.
   const UPI_LIMITS = Object.freeze({ upiId: 100, name: 100, amount: 40, reason: 1000, qrText: 1000 });
@@ -91,5 +95,5 @@
 
   const LIMITS = Object.freeze({ maxMutedSites: 200, maxCounter: 1000000000 });
 
-  return { BRAND, MSG, STORAGE_KEYS, SCHEMA_VERSION, LANGUAGES, SCAN_LANGUAGES, MESSAGE_LIMITS, UPI_LIMITS, SENSITIVITY, RISK_LEVELS, DEFAULT_SETTINGS, LIMITS };
+  return { BRAND, MSG, STORAGE_KEYS, SCHEMA_VERSION, LANGUAGES, SCAN_LANGUAGES, MESSAGE_LIMITS, UPI_LIMITS, SCREENSHOT_LIMITS, SENSITIVITY, RISK_LEVELS, DEFAULT_SETTINGS, LIMITS };
 });
