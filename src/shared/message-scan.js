@@ -33,8 +33,8 @@
   const IGNORED = /[\u00ad\u200b-\u200f\u202a-\u202e\u2060-\u2064\ufeff\u0951-\u0954\u093c]/;
 
   // ---------------------------------------------------------------- compile the rules once
-  function compileAll() {
-    return R.SIGNALS.map((sig) => {
+  function compileAll(list) {
+    return list.map((sig) => {
       const sets = {};
       for (const name of SETS) sets[name] = ((sig.patterns && sig.patterns[name]) || []).map((src) => new RegExp(src, "gu"));
       return {
@@ -45,7 +45,8 @@
       };
     });
   }
-  const COMPILED = compileAll();
+  const COMPILED = compileAll(R.SIGNALS);
+  const COMPILED_PAYMENT = compileAll(R.PAYMENT_SIGNALS);
 
   // ---------------------------------------------------------------- normalising text
   /**
@@ -241,7 +242,12 @@
       const indicators = [];
       const ranges = [];
       const points = new Map();
-      for (const cs of COMPILED) {
+      // opts.payment: the text is the reason for a UPI payment (Step 5). Payment-only signals are added, and the two
+      // "send money" signals are left out because the payment itself is the request.
+      const active = options.payment === true
+        ? COMPILED.filter((cs) => !R.PAYMENT_CONTEXT_SKIP.includes(cs.sig.id)).concat(COMPILED_PAYMENT)
+        : COMPILED;
+      for (const cs of active) {
         const hits = [];
         for (const name of SETS) {
           if (!sets.has(name)) continue;

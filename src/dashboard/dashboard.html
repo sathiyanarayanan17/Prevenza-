@@ -82,9 +82,43 @@
       <div id="msg-result" class="msg-result" aria-live="polite"></div>
     </section>
 
+    <section class="card" aria-labelledby="upi-h" id="upi-check">
+      <h2 id="upi-h">Check a UPI payment</h2>
+      <p class="muted small">Type the details of a payment you are about to make, or were asked to make. They are checked on your device. Nothing is saved or sent anywhere. Prevenza cannot see your UPI app, and it cannot stop or cancel a payment.</p>
+      <p class="notice" role="note"><strong>Never type your UPI PIN or an OTP here.</strong> Prevenza does not need them and will never ask for them.</p>
+      <form class="upi-form" id="upi-form" autocomplete="off">
+        <div class="field">
+          <label for="upi-id">Recipient UPI ID (optional)</label>
+          <input type="text" id="upi-id" maxlength="100" placeholder="name@bank" spellcheck="false" autocomplete="off" autocapitalize="off">
+        </div>
+        <div class="field">
+          <label for="upi-name">Recipient name (optional)</label>
+          <input type="text" id="upi-name" maxlength="100" spellcheck="false" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="upi-amount">Payment amount in rupees</label>
+          <input type="text" id="upi-amount" maxlength="40" inputmode="decimal" placeholder="for example 500" spellcheck="false" autocomplete="off">
+        </div>
+        <div class="field wide">
+          <label for="upi-reason">Payment request message or reason (optional)</label>
+          <textarea id="upi-reason" rows="3" maxlength="1000" spellcheck="false" autocomplete="off"></textarea>
+        </div>
+        <div class="field wide">
+          <label for="upi-qr">Decoded QR text (optional)</label>
+          <textarea id="upi-qr" rows="2" maxlength="1000" spellcheck="false" autocomplete="off" placeholder="upi://pay?pa=name@bank&amp;pn=Name&amp;am=100" aria-describedby="upi-qr-help"></textarea>
+          <p class="muted small" id="upi-qr-help">Paste the text your QR scanner shows. Prevenza does not use your camera or scan your screen.</p>
+        </div>
+        <div class="btn-row wide">
+          <button class="btn btn-primary" type="submit" id="upi-analyze">Analyze payment</button>
+          <button class="btn" type="button" id="upi-clear">Clear</button>
+        </div>
+      </form>
+      <div id="upi-result" class="msg-result" aria-live="polite"></div>
+    </section>
+
     <section class="card" aria-labelledby="road-h">
       <h2 id="road-h">What is coming</h2>
-      <p class="muted small">Link checks and message checks are ready. These features are planned and are not active yet.</p>
+      <p class="muted small">Link checks, message checks and UPI payment checks are ready. These features are planned and are not active yet.</p>
       <ul class="road" id="road"></ul>
     </section>
   </main>
@@ -98,5 +132,6 @@
   <script src="../shared/ui.js"></script>
   <script src="dashboard.js"></script>
   <script src="message-check.js"></script>
+  <script src="upi-check.js"></script>
 </body>
 </html>

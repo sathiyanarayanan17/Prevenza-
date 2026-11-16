@@ -88,6 +88,8 @@
     Object.freeze({ when: /remote_access/, text: "Do not install an app or share your screen because someone asks you to." }),
     Object.freeze({ when: /customer_care/, text: "Find your bank's number on its official website or on your card, not in the message." }),
     Object.freeze({ when: /fake_receipt|payment_screenshot|release_goods/, text: "Do not trust a payment screenshot alone. Check your own bank or UPI app before you release anything." }),
+    Object.freeze({ when: /^upi_(id|name|handle|qr_recipient)/, text: "Check that the name your UPI app shows for the recipient is the person or company you meant to pay." }),
+    Object.freeze({ when: /^upi_amount|^upi_qr_amount/, text: "Confirm the amount with the recipient, on a phone number you already know, before you pay." }),
   ]);
 
   return Object.freeze({ SCORE_CURVE, CATEGORIES, NO_SCORE, SEVERITY_POINTS, LIMITS, STRENGTH_WORDS, MODULES, CATEGORY_ACTIONS, ACTION_HINTS });

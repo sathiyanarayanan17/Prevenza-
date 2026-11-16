@@ -561,6 +561,133 @@
     },
   ]);
 
+  // ---------------------------------------------------------------- extra signals used only when the text is a UPI payment reason
+  // The UPI analyzer (Step 5) scans the reason a user typed for a payment with the same engine as the message checker,
+  // plus these signals. The message checker itself does not use them, so Step 4 results are unchanged.
+  const PAYMENT_SIGNALS = Object.freeze([
+    {
+      id: "msg_receive_money_fee",
+      categories: ["payment_instruction"],
+      weight: 5,
+      label: "Asks you to pay first in order to receive money",
+      why: "You never need to pay anything to receive money, a refund, a prize or a loan. Paying first is how this scam works.",
+      negate: { before: NEG_BEFORE_SECRET, after: NEG_AFTER_SECRET, weight: 0 },
+      patterns: {
+        en: [
+          String.raw`\b(?:pay|send|transfer|deposit)\b${g(40)}\bto\s+(?:receive|get|claim|release|unlock|collect)\b${g(30)}\b(?:money|refund|cashback|prize|reward|payment|loan|winnings?|amount|funds)\b`,
+          String.raw`\b(?:receive|get|claim)\b${g(25)}\b(?:money|refund|cashback|prize|reward|loan|winnings?)\b${g(30)}\b(?:by|after|only\s+after|once\s+you)\s+(?:paying|sending|transferring|depositing)\b`,
+          String.raw`\b(?:small|advance|initial|token)\s+(?:amount|payment|fee)\b${g(40)}\b(?:to\s+)?(?:receive|get|claim|release)\b`,
+        ],
+        hi: [
+          String.raw`(?:पैसे|इनाम|ईनाम|रिफंड|कैशबैक|लोन|राशि)\s*(?:पाने|प्राप्त\s*करने|लेने)${g(40)}(?:भेज|भुगतान|जमा|ट्रांसफर|पे\s*करें)`,
+          String.raw`(?:भेज|भुगतान|जमा|ट्रांसफर)${g(40)}(?:पैसे|इनाम|ईनाम|रिफंड|कैशबैक|लोन)\s*(?:पाने|प्राप्त|लेने)`,
+        ],
+        ta: [
+          String.raw`(?:பணம்|பரிசு|ரீஃபண்ட்|கேஷ்பேக்|கடன்)\s*பெற${g(40)}(?:செலுத்த|அனுப்ப|கட்ட)`,
+          String.raw`(?:செலுத்த|அனுப்ப|கட்ட)${g(40)}(?:பணம்|பரிசு|ரீஃபண்ட்|கேஷ்பேக்|கடன்)\s*பெற`,
+        ],
+        hr: [
+          String.raw`\b(?:paise|inaam|refund|cashback|loan|reward|prize)\b${g(20)}\b(?:pane|paane|milne|prapt|lene)\b${g(40)}\b(?:pay|bhej\w*|jama|transfer|dena|bharna)\b`,
+          String.raw`\b(?:pay|bhej\w*|jama|transfer|bharna)\b${g(40)}\b(?:paise|inaam|refund|cashback|loan|reward|prize)\b${g(20)}\b(?:pane|paane|milne|prapt|lene)\b`,
+        ],
+        tr: [
+          String.raw`\b(?:panam|parisu|refund|cashback|loan)\b${g(20)}\b(?:vara|peru\w*|kidaikka|pera)\b${g(40)}\b(?:pay|anupp\w*|kattu\w*|transfer)\b`,
+          String.raw`\b(?:pay|anupp\w*|kattu\w*|transfer)\b${g(40)}\b(?:panam|parisu|refund|cashback|loan)\b${g(20)}\b(?:vara|peru\w*|kidaikka|pera)\b`,
+        ],
+      },
+    },
+    {
+      id: "msg_kyc_charge",
+      categories: ["fake_kyc"],
+      weight: 4,
+      label: "Asks for a fee for KYC, verification or activation",
+      why: "Banks and payment apps do not charge a fee to update KYC or to verify or activate an account. A request to pay one is a common trick.",
+      negate: { before: NEG_BEFORE_SECRET, after: NEG_AFTER_SECRET, weight: 0 },
+      patterns: {
+        en: [
+          String.raw`\b(?:pay|send|transfer|deposit|submit)\b${g(40)}\b(?:${KYC_L}|verification|activation|registration|account\s+upgrade|sim\s+activation)\s*(?:fees?|charges?|amount)\b`,
+          String.raw`\b(?:${KYC_L}|verification|activation|registration)\s*(?:fees?|charges?|amount)\b${g(40)}(?:\b(?:pay\w*|send|transfer|deposit|due|pending|inr)\b|₹|\brs\b)`,
+        ],
+        hi: [
+          String.raw`(?:${KYC_HI}|वेरिफिकेशन|एक्टिवेशन|रजिस्ट्रेशन)\s*(?:शुल्क|फीस|चार्ज)${g(40)}(?:भुगतान|जमा|भेज|दें|देना|चुकाएं)`,
+          String.raw`(?:भुगतान|जमा|भेज)${g(40)}(?:${KYC_HI}|वेरिफिकेशन|एक्टिवेशन|रजिस्ट्रेशन)\s*(?:शुल्क|फीस|चार्ज)`,
+        ],
+        ta: [
+          String.raw`(?:${KYC_TA}|சரிபார்ப்பு|செயல்படுத்தல்|பதிவு)\s*(?:கட்டண|சார்ஜ்)${g(40)}(?:செலுத்த|அனுப்ப|கட்ட)`,
+          String.raw`(?:செலுத்த|அனுப்ப|கட்ட)${g(40)}(?:${KYC_TA}|சரிபார்ப்பு|செயல்படுத்தல்|பதிவு)\s*(?:கட்டண|சார்ஜ்)`,
+        ],
+        hr: [String.raw`\b(?:${KYC_L}|verification|activation|registration)\s*(?:fees?|charges?|shulk)\b${g(40)}\b(?:pay|bhej\w*|jama|dena|bharna|bhugtan|karein|karen)\b`],
+        tr: [String.raw`\b(?:${KYC_L}|verification|activation|registration)\s*(?:fees?|charges?|kattanam)\b${g(40)}\b(?:pay|anupp\w*|kattu\w*|seluttu\w*)\b`],
+      },
+    },
+    {
+      id: "msg_parcel_release_fee",
+      categories: ["parcel_fee"],
+      weight: 4,
+      label: "Asks for a fee to release or clear a parcel",
+      why: "Fake courier and customs messages ask for a small \"release\" or \"clearance\" fee. Check any parcel in the courier's official app instead of paying.",
+      patterns: {
+        en: [
+          String.raw`\b(?:parcel|package|courier|customs|consignment|shipment)\b${g(30)}\b(?:release|clearance|redelivery|re-delivery|handling|customs)\s*(?:fees?|charges?|duty)\b`,
+          String.raw`\b(?:release|clearance|redelivery|handling)\s*(?:fees?|charges?)\b${g(30)}\b(?:parcel|package|courier|consignment|shipment)\b`,
+        ],
+        hi: [String.raw`(?:पार्सल|कूरियर|पैकेज|कस्टम)${g(30)}(?:रिलीज|क्लीयरेंस|हैंडलिंग)\s*(?:शुल्क|फीस|चार्ज)`],
+        ta: [String.raw`(?:பார்சல|கூரியர|பொட்டல|சுங்க)${g(30)}(?:வெளியீட்டு|கிளியரன்ஸ்|கையாளும்)\s*(?:கட்டண|சார்ஜ்)`],
+        hr: [String.raw`\b(?:parcel|courier|package)\b${g(30)}\b(?:release|clearance|handling)\s*(?:fees?|charges?|shulk)\b`],
+        tr: [String.raw`\b(?:parcel|courier|package)\b${g(30)}\b(?:release|clearance|handling)\s*(?:fees?|charges?|kattanam)\b`],
+      },
+    },
+    {
+      id: "msg_refund_payment_request",
+      categories: ["payment_instruction"],
+      weight: 3,
+      label: "Links a \"refund\" to something you must pay, scan or approve",
+      why: "A real refund goes back to your account by itself. You do not pay, scan a code or approve a request to receive one.",
+      negate: { before: NEG_BEFORE_SECRET, after: NEG_AFTER_SECRET, weight: 0 },
+      patterns: {
+        en: [String.raw`\brefund\w*\b${g(40)}\b(?:pay|send|approve|accept|scan|share|fees?|charges?|enter\s+(?:your\s+)?(?:upi\s+)?pin)\b`],
+        hi: [String.raw`रिफंड${g(40)}(?:भेज|भुगतान|अप्रूव|स्वीकार|स्कैन|शुल्क|फीस|चार्ज)`],
+        ta: [String.raw`ரீஃபண்ட்${g(40)}(?:செலுத்த|அனுப்ப|அப்ரூவ்|ஏற்க|ஸ்கேன்|கட்டண)`],
+        hr: [String.raw`\brefund\b${g(40)}\b(?:pay|bhej\w*|approve|accept|scan|fees?|charges?|shulk)\b`],
+        tr: [String.raw`\brefund\b${g(40)}\b(?:pay|anupp\w*|approve|accept|scan|fees?|charges?|kattanam)\b`],
+      },
+    },
+    {
+      id: "msg_wrong_transfer_request",
+      categories: ["urgent_transfer"],
+      weight: 3,
+      label: "Says money was sent to you by mistake and asks you to send it back",
+      why: "Scammers send a small amount, then ask you to return it to a different account. If money really arrived by mistake, ask your bank to reverse it. Do not send it yourself.",
+      patterns: {
+        en: [
+          String.raw`\b(?:by\s+mistake|mistakenly|wrongly|wrong\s+(?:number|account|transfer|upi))\b${g(60)}\b(?:send|return|refund|transfer|give|pay)\b${g(15)}\b(?:back|it|money|amount)\b`,
+          String.raw`\b(?:send|return|transfer|give|pay)\b${g(20)}\bback\b${g(60)}\b(?:by\s+mistake|mistakenly|wrongly|wrong\s+(?:number|account|transfer))\b`,
+        ],
+        hi: [String.raw`(?:गलती\s*से|गलत\s*(?:नंबर|खाते))${g(60)}(?:वापस|लौटा)`],
+        ta: [String.raw`(?:தவறுதலாக|தவறான\s*(?:எண்|கணக்க))${g(60)}திருப்பி${g(15)}(?:அனுப்ப|கொடு)`],
+        hr: [String.raw`\b(?:galti\s+se|galat\s+(?:number|account))\b${g(60)}\b(?:wapas|vapas|return)\b`],
+        tr: [String.raw`\b(?:thavaraga|thappa|thavarudhala)\b${g(60)}\b(?:thirumbi|return|back)\b`],
+      },
+    },
+    {
+      id: "msg_customer_care_payment",
+      categories: ["customer_care"],
+      weight: 3.5,
+      label: "A \"customer care\" or \"support\" contact asks you to pay or approve something",
+      why: "Genuine customer care never asks you to send money, scan a code or approve a request. Fake support numbers are often placed in search results.",
+      patterns: {
+        en: [String.raw`\b${CARE_L}\b${g(50)}\b(?:pay|send|transfer|deposit|approve|scan)\b`],
+        hi: [String.raw`${CARE_HI}${g(50)}(?:भुगतान|भेज|ट्रांसफर|जमा|अप्रूव)`],
+        ta: [String.raw`${CARE_TA}${g(50)}(?:செலுத்த|அனுப்ப|மாற்ற|அப்ரூவ்)`],
+        hr: [String.raw`\b${CARE_L}\b${g(50)}\b(?:pay|bhej\w*|transfer|jama|approve|scan)\b`],
+        tr: [String.raw`\b${CARE_L}\b${g(50)}\b(?:pay|anupp\w*|transfer|approve|scan)\b`],
+      },
+    },
+  ]);
+
+  // In a UPI payment the payment itself is the request, so "send money" and "pay to this ID" would fire on every payment.
+  const PAYMENT_CONTEXT_SKIP = Object.freeze(["msg_money_request", "msg_payment_instruction"]);
+
   // ---------------------------------------------------------------- scam categories shown to the user
   const CATEGORIES = Object.freeze([
     Object.freeze({ id: "fake_kyc", label: "Fake KYC update" }),
@@ -631,5 +758,5 @@
     negateWindowAfter: 60,
   });
 
-  return Object.freeze({ SIGNALS, CATEGORIES, LANGUAGE_LABELS, HINGLISH_WORDS, TAMIL_ROMAN_WORDS, ENGLISH_WORDS, CONFUSABLES, LINK_ENDINGS, LIMITS });
+  return Object.freeze({ SIGNALS, PAYMENT_SIGNALS, PAYMENT_CONTEXT_SKIP, CATEGORIES, LANGUAGE_LABELS, HINGLISH_WORDS, TAMIL_ROMAN_WORDS, ENGLISH_WORDS, CONFUSABLES, LINK_ENDINGS, LIMITS });
 });

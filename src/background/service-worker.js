@@ -13,6 +13,8 @@ importScripts(
   "../shared/risk-engine.js",
   "../shared/message-rules.js",
   "../shared/message-scan.js",
+  "../shared/upi-rules.js",
+  "../shared/upi-analyze.js",
   "./handler.js"
 );
 
@@ -40,6 +42,7 @@ const background = H.createBackground({
   urlIntel: H.urlIntel,
   messageScan: H.messageScan,
   riskEngine: H.riskEngine,
+  upiAnalyze: H.upiAnalyze,
 });
 
 chrome.runtime.onInstalled.addListener(() => {

@@ -33,6 +33,7 @@
     [MSG.ANALYZE_SITE]: ["page"],
     [MSG.CHECK_URL]: ["page"],
     [MSG.SCAN_MESSAGE]: ["page"],
+    [MSG.ANALYZE_UPI]: ["page"],
     [MSG.CONTENT_READY]: ["content"],
   });
 
@@ -41,6 +42,8 @@
   const URL_FIELDS = ["url"];
   // The message checker accepts text the user pasted, and optionally a language choice. Nothing else.
   const MESSAGE_FIELDS = ["text", "language"];
+  // The UPI analyzer accepts text fields only, never a PIN, an OTP or anything else.
+  const UPI_FIELDS = ["upiId", "name", "amount", "reason", "qrText"];
   const MAX_URL_INPUT = 2048;
   const MAX_HOSTNAME_INPUT = 253;
 
@@ -66,6 +69,7 @@
     const urlIntel = deps.urlIntel || null;
     const messageScan = deps.messageScan || null;
     const riskEngine = deps.riskEngine || null;
+    const upiAnalyze = deps.upiAnalyze || null;
     const broadcast = deps.broadcast || (async () => undefined);
     const now = deps.now || (() => Date.now());
     const extOrigin = "chrome-extension://" + runtimeId + "/";
@@ -192,6 +196,35 @@
               analysedLength: scan.analysedLength,
               shortText: scan.shortText,
               linksChecked: links.checked,
+            },
+          };
+        }
+
+        // The user typed these payment details into the UPI analyzer. Analysed in memory, never stored, never echoed back
+        // except the recipient, name and amount read from a pasted code (so the page can show what the code contains).
+        case MSG.ANALYZE_UPI: {
+          const p = message.payload;
+          if (!H.isPlainObject(p) || !Object.keys(p).every((k) => UPI_FIELDS.includes(k))) return { ok: false, error: "bad-payload" };
+          for (const k of Object.keys(p)) if (typeof p[k] !== "string" || p[k].length > H.UPI_LIMITS[k]) return { ok: false, error: "bad-payload" };
+          if (!messageScan || !riskEngine || !upiAnalyze) return { ok: false, error: "unavailable" };
+          const settings = await store.getSettings();
+          if (!settings.enabled) return { ok: true, skipped: "protection-off" };
+          const upi = upiAnalyze.analyzeUpi(p, { messageScan });
+          if (!upi.ok) return { ok: true, result: { ok: false, error: upi.error, message: upi.message, problems: upi.problems } };
+          const links = linkEvidence(upi.linkText);
+          const assessment = riskEngine.assess({ payment: { ok: true, indicators: upi.indicators }, url: links.module });
+          return {
+            ok: true,
+            result: {
+              ok: true,
+              assessment,
+              warning: upiAnalyze.holdyWarning(assessment),
+              problems: upi.problems,
+              notes: upi.notes,
+              qr: upi.qr,
+              checked: upi.checked,
+              linksChecked: links.checked,
+              cannotStop: upiAnalyze.CANNOT_STOP,
             },
           };
         }

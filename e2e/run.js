@@ -313,6 +313,84 @@ const server = http
     check("popup: 'Check a message' opens the dashboard at the message checker", !!msgTab && /dashboard\.html#message-check$/.test(msgTab.url()), msgTab ? msgTab.url() : "no tab opened");
     if (msgTab) await msgTab.close().catch(() => undefined);
 
+    // ---- 6d. Step 5: UPI payment analyzer (new checks, added after the Step 1 to 4 checks)
+    const checkUpi = async (f) => {
+      await dash.fill("#upi-id", f.upiId || "");
+      await dash.fill("#upi-name", f.name || "");
+      await dash.fill("#upi-amount", f.amount || "");
+      await dash.fill("#upi-reason", f.reason || "");
+      await dash.fill("#upi-qr", f.qr || "");
+      await dash.click("#upi-analyze");
+      await sleep(500);
+      return dash.textContent("#upi-result");
+    };
+    check("UPI analyzer: the section has the five fields, Analyze and Clear, and no PIN, OTP, password or file field", (await dash.$$eval("#upi-form input, #upi-form textarea", (n) => n.length)) === 5 && (await dash.$("#upi-form input[type=password], #upi-form input[type=file]")) === null && /Analyze/.test(await dash.textContent("#upi-analyze")) && /Clear/.test(await dash.textContent("#upi-clear")));
+    check("UPI analyzer: it says never to type a PIN or OTP and that it cannot stop payments", /Never type your UPI PIN or an OTP here/.test(await dash.textContent("#upi-check")) && /cannot stop or cancel a payment/.test(await dash.textContent("#upi-check")));
+    check("UPI analyzer: before any check nothing is claimed", (await dash.textContent("#upi-result")).trim() === "");
+
+    let upiOut = await checkUpi({ upiId: "ramesh.k@oksbi", name: "Ramesh Kumar", amount: "500", reason: "Dinner share" });
+    check("UPI analyzer: a normal payment is Low risk with no Holdy warning and is not called safe", /Low risk/.test(upiOut) && (await dash.$("#upi-result .holdy")) === null && /not proof of safety|not a guarantee/i.test(upiOut) && /cannot stop or cancel/i.test(upiOut));
+    upiOut = await checkUpi({ upiId: "x7qz9@newbankxyz", amount: "250" });
+    check("UPI analyzer: an unfamiliar UPI ID is not treated as a warning sign", /Low risk/.test(upiOut) && /not a warning sign/i.test(upiOut) && (await dash.$("#upi-result .holdy")) === null);
+
+    upiOut = await checkUpi({ upiId: "sbi.customercare@ybl", name: "SBI Support", amount: "10", reason: "Pay Rs 10 to get your refund" });
+    check("UPI analyzer: a fake-support refund payment is High or Critical risk", /(High|Critical) risk/.test(upiOut) && /Warning level \d+ of 100/.test(upiOut) && /not the probability/i.test(upiOut));
+    check("UPI analyzer: risk has a label AND a shape (not colour alone)", (await dash.$("#upi-result .pill-danger, #upi-result .pill-critical")) !== null && /risk/.test(await dash.textContent("#upi-result .pill")));
+    check("UPI analyzer: Prevy shows a warning headline, plain advice and the 'cannot stop payments' note", (await dash.$("#upi-result .holdy svg")) !== null && /pay to receive money\? Be careful/.test(await dash.textContent("#upi-result .holdy h3")) && /cannot stop or cancel a payment/i.test(await dash.textContent("#upi-result .holdy")));
+    check("UPI analyzer: the four actions are offered and none claims to cancel anything", (await dash.$$eval("#upi-result .holdy li", (l) => l.length)) === 4 && /Review the payment details/.test(await dash.textContent("#upi-result .holdy li:first-child button")) && /Ask a trusted/.test(await dash.textContent("#upi-result .holdy")) && /Continue only after/.test(await dash.textContent("#upi-result .holdy")));
+    check("UPI analyzer: reasons come from the signs found and name their source", (await dash.$$eval("#upi-result .reasons li", (l) => l.length)) >= 3 && /UPI payment details/.test(await dash.textContent("#upi-result .reasons")));
+    await dash.screenshot({ path: path.join(SHOTS, "11-upi-analyzer-warning.png"), fullPage: true });
+    await dash.click("#upi-result .holdy li:first-child button");
+    check("UPI analyzer: 'Review the payment details' returns you to the form (it does not act on a payment)", (await dash.evaluate(() => document.activeElement && document.activeElement.id)) === "upi-id");
+
+    upiOut = await checkUpi({ upiId: "help@ybl", amount: "1", reason: "Please share your UPI PIN and OTP to receive the money" });
+    check("UPI analyzer: a PIN or OTP request shows the 'never share' warning", /Never share your UPI PIN or OTP with anyone/.test(await dash.textContent("#upi-result .holdy h3")) && /Never share your OTP/i.test(upiOut));
+    upiOut = await checkUpi({ upiId: "rbi.safe@ybl", amount: "250000", reason: "Transfer your money to the RBI safe account" });
+    check("UPI analyzer: safe-account wording is Critical risk with its own shape", /Critical risk/.test(upiOut) && (await dash.$("#upi-result .pill-critical")) !== null && /no such thing as a safe account/i.test(upiOut));
+    upiOut = await checkUpi({ upiId: "abc@ybl", amount: "49", reason: "\u092a\u0948\u0938\u0947 \u092a\u093e\u0928\u0947 \u0915\u0947 \u0932\u093f\u090f 100 \u0930\u0941\u092a\u092f\u0947 \u092d\u0947\u091c\u0947\u0902" });
+    check("UPI analyzer: a Hindi payment reason is read too", /Medium risk|High risk|Critical risk/.test(upiOut) && /pay first in order to receive money/i.test(upiOut));
+    upiOut = await checkUpi({ upiId: "friend@ybl", reason: "Urgent: electricity bill for March, due today", amount: "1200" });
+    check("UPI analyzer: a genuine message containing 'urgent' stays Low risk", /Low risk/.test(upiOut) && (await dash.$("#upi-result .holdy")) === null);
+
+    upiOut = await checkUpi({ qr: "upi://pay?pa=shop@ybl&pn=Corner%20Shop&am=120&cu=INR&tn=Milk" });
+    check("UPI analyzer: a pasted payment code is read and its recipient and amount are shown", /What the pasted code contains/.test(upiOut) && /shop@ybl/.test(upiOut) && /120/.test(upiOut) && /Low risk/.test(upiOut));
+    upiOut = await checkUpi({ qr: "upi://collect?pa=other@ybl&pn=X&am=5000" });
+    check("UPI analyzer: a code that takes money from you is flagged with a warning", /takes money from you/.test(upiOut) && (await dash.$("#upi-result .holdy")) !== null);
+    upiOut = await checkUpi({ qr: "hello world" });
+    check("UPI analyzer: text that is not a UPI code is explained and not analysed", /could not read this as a UPI payment code/i.test(upiOut) && (await dash.$("#upi-result .pill")) === null);
+    upiOut = await checkUpi({ upiId: "not a upi id", amount: "100" });
+    check("UPI analyzer: an invalid UPI ID is explained, not called fraud", /looks like name@bank/.test(upiOut) && !/High risk|Critical risk/.test(upiOut));
+    upiOut = await checkUpi({});
+    check("UPI analyzer: empty input asks for at least one detail", /at least one detail/i.test(upiOut));
+    upiOut = await checkUpi({ upiId: "a.b@ybl", amount: "50,00,000" });
+    check("UPI analyzer: a very large amount is only noted, not called fraud", /Low risk/.test(upiOut) && /above what many UPI payments allow/i.test(upiOut));
+    upiOut = await checkUpi({ amount: "banana", upiId: "a.b@ybl" });
+    check("UPI analyzer: an unreadable amount is explained", /amount could not be read/i.test(upiOut));
+
+    await dash.fill("#upi-id", "someone@ybl");
+    await dash.click("#upi-clear");
+    check("UPI analyzer: Clear empties every field and the result", (await dash.inputValue("#upi-id")) === "" && (await dash.inputValue("#upi-reason")) === "" && (await dash.textContent("#upi-result")).trim() === "");
+
+    await dash.evaluate(() => chrome.runtime.sendMessage({ type: "prevenza/update-settings", payload: { settings: { enabled: false } } }));
+    upiOut = await checkUpi({ upiId: "refund@ybl", amount: "10" });
+    check("UPI analyzer: protection off means the payment is not analysed", /Protection is off/.test(upiOut) && (await dash.$("#upi-result .pill")) === null);
+    await dash.evaluate(() => chrome.runtime.sendMessage({ type: "prevenza/update-settings", payload: { settings: { enabled: true } } }));
+
+    await checkUpi({ upiId: "zq9private4471@ybl", name: "Zq9 Private Person", amount: "4471.55", reason: "zq9-private-reason pay to receive refund", qr: "upi://pay?pa=private-qr@ybl&am=5" });
+    const upiStored = JSON.stringify(await sw.evaluate(() => chrome.storage.local.get(null)));
+    check("UPI analyzer: no UPI ID, name, amount, reason or code is stored anywhere", !/zq9|4471|private-qr|private-reason|ybl|refund/i.test(upiStored), "storage keys: " + Object.keys(JSON.parse(upiStored)).join(", "));
+    const pinReply = await dash.evaluate(() => chrome.runtime.sendMessage({ type: "prevenza/analyze-upi", payload: { upiId: "a@ybl", upiPin: "4321" } }));
+    check("UPI analyzer: the background refuses any field that could carry a PIN or OTP", pinReply.ok === false && pinReply.error === "bad-payload" && !JSON.stringify(pinReply).includes("4321"));
+
+    await dash.setViewportSize({ width: 390, height: 844 });
+    await checkUpi({ upiId: "sbi.customercare@ybl", name: "SBI Support", amount: "10", reason: "Pay Rs 10 to get your refund. Customer care says approve the collect request", qr: "upi://collect?pa=other@ybl&pn=X&am=5000" });
+    check("UPI analyzer: a long result does not scroll sideways on a phone-sized window", (await dash.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)) === false);
+    const upiSizes = await dash.evaluate(() => ["upi-id", "upi-name", "upi-amount", "upi-analyze", "upi-clear"].map((i) => document.getElementById(i).getBoundingClientRect().height));
+    check("UPI analyzer: every control is at least 44px tall (elder mode is on)", upiSizes.every((h) => h >= 44), upiSizes.join(","));
+    await dash.screenshot({ path: path.join(SHOTS, "12-upi-analyzer-mobile.png"), fullPage: true });
+    await dash.setViewportSize({ width: 1100, height: 900 });
+    await dash.click("#upi-clear");
+
     // The popup on a real website tab (the page is served from a look-alike name by the test browser, no real network)
     const scam = await ctx.newPage();
     watch(scam, "look-alike site");

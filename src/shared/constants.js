@@ -33,7 +33,11 @@
     ANALYZE_SITE: "prevenza/analyze-site", // popup -> background: site name + protocol of the open tab
     CHECK_URL: "prevenza/check-url", // dashboard -> background: an address the user typed or pasted
     SCAN_MESSAGE: "prevenza/scan-message", // dashboard -> background: text the user pasted into the message checker
+    ANALYZE_UPI: "prevenza/analyze-upi", // dashboard -> background: payment details the user typed into the UPI analyzer
   });
+
+  // The UPI analyzer accepts only these fields, each as text, with these length limits.
+  const UPI_LIMITS = Object.freeze({ upiId: 100, name: 100, amount: 40, reason: 1000, qrText: 1000 });
 
   // Choices in the message checker. "auto" lets Prevenza guess. Hinglish means Hindi written in English letters.
   const SCAN_LANGUAGES = Object.freeze([
@@ -87,5 +91,5 @@
 
   const LIMITS = Object.freeze({ maxMutedSites: 200, maxCounter: 1000000000 });
 
-  return { BRAND, MSG, STORAGE_KEYS, SCHEMA_VERSION, LANGUAGES, SCAN_LANGUAGES, MESSAGE_LIMITS, SENSITIVITY, RISK_LEVELS, DEFAULT_SETTINGS, LIMITS };
+  return { BRAND, MSG, STORAGE_KEYS, SCHEMA_VERSION, LANGUAGES, SCAN_LANGUAGES, MESSAGE_LIMITS, UPI_LIMITS, SENSITIVITY, RISK_LEVELS, DEFAULT_SETTINGS, LIMITS };
 });

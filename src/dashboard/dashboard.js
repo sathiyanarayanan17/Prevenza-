@@ -9,10 +9,11 @@
   const ROADMAP = [
     ["Smart URL checks", "Ready"],
     ["Scam message checker (English, Hindi, Tamil, Hinglish)", "Ready"],
+    ["UPI payment analyzer", "Ready"],
     ["Scam risk score for links and pages", "Planned"],
-    ["UPI payment analyzer", "Planned"],
     ["Payment screenshot reader", "Planned"],
     ["Prevy emergency help and safety button", "Planned"],
+    ["Prevy warnings that adapt to every check", "Planned"],
     ["Community scam alerts", "Planned"],
     ["Warning pop-up before a risky page", "Planned"],
     ["Elder mode", "Ready"],
