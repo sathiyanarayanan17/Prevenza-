@@ -8,12 +8,13 @@
   // Ideas for later steps. Shown honestly as "Planned", never as working features.
   const ROADMAP = [
     ["Smart URL checks", "Ready"],
-    ["Scam risk score and explanation", "Planned"],
+    ["Scam message checker (English, Hindi, Tamil, Hinglish)", "Ready"],
+    ["Scam risk score for links and pages", "Planned"],
     ["UPI payment analyzer", "Planned"],
-    ["Scam message checker (multilingual)", "Planned"],
     ["Payment screenshot reader", "Planned"],
     ["Prevy emergency help and safety button", "Planned"],
     ["Community scam alerts", "Planned"],
+    ["Warning pop-up before a risky page", "Planned"],
     ["Elder mode", "Ready"],
   ];
 
@@ -55,7 +56,7 @@
     $("stat-last").textContent = H.ui.formatDate(stats.lastActiveAt);
     $("stat-installed").textContent = stats.installedAt ? "Installed " + H.ui.formatDate(stats.installedAt) : "";
     $("hero-sub").textContent = settings.enabled
-      ? "Prevenza is on and keeping watch quietly. Link checks are ready. Full scam scoring arrives in the next step."
+      ? "Prevenza is on and keeping watch quietly. Link checks and the message checker are ready."
       : "Protection is off. Turn it on in Settings.";
   }
 

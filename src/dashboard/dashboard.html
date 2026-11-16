@@ -65,9 +65,26 @@
       <div id="link-result" class="link-result" aria-live="polite"></div>
     </section>
 
+    <section class="card" aria-labelledby="msg-h" id="message-check">
+      <h2 id="msg-h">Check a message</h2>
+      <p class="muted small">Paste a message you received by SMS, WhatsApp or email. It is checked on your device. Nothing is saved or sent anywhere, and Prevenza never reads your messages by itself.</p>
+      <form class="msg-form" id="msg-form" autocomplete="off">
+        <label class="row-title" for="msg-input">Message text</label>
+        <textarea id="msg-input" maxlength="5000" rows="6" spellcheck="false" autocomplete="off" placeholder="Paste the message here" aria-describedby="msg-count"></textarea>
+        <p class="muted small" id="msg-count">0 of 5000 characters</p>
+        <div class="msg-controls">
+          <label for="msg-language">Language</label>
+          <select id="msg-language"></select>
+          <button class="btn btn-primary" type="submit" id="msg-analyze">Analyze message</button>
+          <button class="btn" type="button" id="msg-clear">Clear</button>
+        </div>
+      </form>
+      <div id="msg-result" class="msg-result" aria-live="polite"></div>
+    </section>
+
     <section class="card" aria-labelledby="road-h">
       <h2 id="road-h">What is coming</h2>
-      <p class="muted small">Link checks are ready. These features are planned and are not active yet.</p>
+      <p class="muted small">Link checks and message checks are ready. These features are planned and are not active yet.</p>
       <ul class="road" id="road"></ul>
     </section>
   </main>
@@ -80,5 +97,6 @@
   <script src="../shared/messaging.js"></script>
   <script src="../shared/ui.js"></script>
   <script src="dashboard.js"></script>
+  <script src="message-check.js"></script>
 </body>
 </html>

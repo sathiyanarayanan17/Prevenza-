@@ -97,6 +97,12 @@
     window.close();
   });
 
+  // The message checker lives on the dashboard: a popup closes when it loses focus, which would lose a pasted message.
+  $("open-message-check").addEventListener("click", () => {
+    chrome.tabs.create({ url: chrome.runtime.getURL("src/dashboard/dashboard.html#message-check") });
+    window.close();
+  });
+
   $("open-settings").addEventListener("click", () => {
     chrome.runtime.openOptionsPage();
     window.close();

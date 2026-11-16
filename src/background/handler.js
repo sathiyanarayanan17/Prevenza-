@@ -32,12 +32,15 @@
     [MSG.DIAGNOSTICS]: ["page"],
     [MSG.ANALYZE_SITE]: ["page"],
     [MSG.CHECK_URL]: ["page"],
+    [MSG.SCAN_MESSAGE]: ["page"],
     [MSG.CONTENT_READY]: ["content"],
   });
 
   // URL analysis accepts only the exact fields below. A path, query or page text is refused at the door.
   const SITE_FIELDS = ["hostname", "protocol"];
   const URL_FIELDS = ["url"];
+  // The message checker accepts text the user pasted, and optionally a language choice. Nothing else.
+  const MESSAGE_FIELDS = ["text", "language"];
   const MAX_URL_INPUT = 2048;
   const MAX_HOSTNAME_INPUT = 253;
 
@@ -53,15 +56,36 @@
    *   version:    manifest version string
    *   broadcast:  async (message) => void   sends a message to every tab's content script
    *   urlIntel:   the offline URL analyzer (optional; without it URL messages reply "unavailable")
+   *   messageScan: the offline message scanner (optional; without it message checks reply "unavailable")
+   *   riskEngine: the central risk engine (optional; needed together with messageScan)
    *   now:        () => number               optional, for tests
    * }
    */
   function createBackground(deps) {
     const { store, runtimeId, version } = deps;
     const urlIntel = deps.urlIntel || null;
+    const messageScan = deps.messageScan || null;
+    const riskEngine = deps.riskEngine || null;
     const broadcast = deps.broadcast || (async () => undefined);
     const now = deps.now || (() => Date.now());
     const extOrigin = "chrome-extension://" + runtimeId + "/";
+
+    /**
+     * Web addresses written inside a pasted message go through the same offline URL checker, in memory only.
+     * Returns the evidence in the shape the risk engine expects, or undefined if there was nothing to check.
+     */
+    function linkEvidence(text) {
+      if (!urlIntel || !messageScan) return { module: undefined, checked: 0 };
+      const indicators = [];
+      let checked = 0;
+      for (const link of messageScan.extractLinks(text)) {
+        const r = urlIntel.analyzeUrl(link);
+        if (!r || r.ok !== true || !Array.isArray(r.indicators)) continue;
+        checked += 1;
+        for (const i of r.indicators) indicators.push({ id: i.id, label: i.label, why: i.why, weight: i.weight, severity: i.severity, critical: i.critical === true });
+      }
+      return checked > 0 ? { module: { ok: true, indicators }, checked } : { module: undefined, checked: 0 };
+    }
 
     function classifySender(sender) {
       if (!sender || sender.id !== runtimeId) return "foreign";
@@ -138,6 +162,38 @@
           // A site on the quiet list is still checked when the user asks directly; the answer says so.
           const quiet = result.ok && H.isMuted(result.host, settings.mutedSites);
           return { ok: true, result, quietSite: !!quiet };
+        }
+
+        // The user pasted this text into the message checker. It is analysed in memory and never stored.
+        // The reply carries rule wording, character positions and the risk assessment, never a copy of the text.
+        case MSG.SCAN_MESSAGE: {
+          const p = message.payload;
+          if (!H.isPlainObject(p) || typeof p.text !== "string" || p.text.length > H.MESSAGE_LIMITS.maxInput) return { ok: false, error: "bad-payload" };
+          if (!Object.keys(p).every((k) => MESSAGE_FIELDS.includes(k))) return { ok: false, error: "bad-payload" };
+          if (p.language !== undefined && !H.SCAN_LANGUAGES.some((l) => l.id === p.language)) return { ok: false, error: "bad-payload" };
+          if (!messageScan || !riskEngine) return { ok: false, error: "unavailable" };
+          const settings = await store.getSettings();
+          if (!settings.enabled) return { ok: true, skipped: "protection-off" };
+          const scan = messageScan.scanMessage(p.text, { language: p.language || "auto" });
+          if (!scan.ok) return { ok: true, result: { ok: false, error: scan.error, message: scan.message } };
+          const links = linkEvidence(p.text);
+          const assessment = riskEngine.assess({ message: { ok: true, indicators: scan.indicators }, url: links.module });
+          return {
+            ok: true,
+            result: {
+              ok: true,
+              assessment,
+              language: scan.language,
+              languageNote: scan.languageNote,
+              highlights: scan.highlights,
+              primaryCategory: scan.primaryCategory,
+              otherCategories: scan.otherCategories,
+              truncated: scan.truncated,
+              analysedLength: scan.analysedLength,
+              shortText: scan.shortText,
+              linksChecked: links.checked,
+            },
+          };
         }
 
         default:

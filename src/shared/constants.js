@@ -32,7 +32,20 @@
     SETTINGS_UPDATED: "prevenza/settings-updated", // background -> content scripts
     ANALYZE_SITE: "prevenza/analyze-site", // popup -> background: site name + protocol of the open tab
     CHECK_URL: "prevenza/check-url", // dashboard -> background: an address the user typed or pasted
+    SCAN_MESSAGE: "prevenza/scan-message", // dashboard -> background: text the user pasted into the message checker
   });
+
+  // Choices in the message checker. "auto" lets Prevenza guess. Hinglish means Hindi written in English letters.
+  const SCAN_LANGUAGES = Object.freeze([
+    Object.freeze({ id: "auto", label: "Detect automatically" }),
+    Object.freeze({ id: "en", label: "English" }),
+    Object.freeze({ id: "hi", label: "\u0939\u093F\u0928\u094D\u0926\u0940 (Hindi)" }),
+    Object.freeze({ id: "ta", label: "\u0BA4\u0BAE\u0BBF\u0BB4\u0BCD (Tamil)" }),
+    Object.freeze({ id: "hinglish", label: "Hinglish (Hindi in English letters)" }),
+  ]);
+
+  // The message checker refuses anything longer than maxInput, and only analyses the first maxAnalysed characters.
+  const MESSAGE_LIMITS = Object.freeze({ maxInput: 20000, maxAnalysed: 5000 });
 
   const STORAGE_KEYS = Object.freeze({
     settings: "prevenza.settings",
@@ -74,5 +87,5 @@
 
   const LIMITS = Object.freeze({ maxMutedSites: 200, maxCounter: 1000000000 });
 
-  return { BRAND, MSG, STORAGE_KEYS, SCHEMA_VERSION, LANGUAGES, SENSITIVITY, RISK_LEVELS, DEFAULT_SETTINGS, LIMITS };
+  return { BRAND, MSG, STORAGE_KEYS, SCHEMA_VERSION, LANGUAGES, SCAN_LANGUAGES, MESSAGE_LIMITS, SENSITIVITY, RISK_LEVELS, DEFAULT_SETTINGS, LIMITS };
 });

@@ -24,3 +24,19 @@
 .link-result .note { margin-top: 6px; }
 .link-result .problem { color: #fca5a5; }
 @media (max-width: 480px) { .link-form { flex-direction: column; } }
+
+/* message checker */
+.msg-form { display: grid; gap: 8px; margin-top: 12px; }
+.msg-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.msg-controls select { min-width: 0; max-width: 100%; }
+.msg-result { margin-top: 14px; display: grid; gap: 12px; }
+.msg-result h3 { margin-top: 4px; }
+.msg-result .verdict { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.msg-result .score { font-weight: 800; font-size: 1.25rem; }
+.msg-result .problem { color: #fca5a5; }
+.msg-text { white-space: pre-wrap; overflow-wrap: anywhere; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+/* a flagged phrase is bold, underlined and tinted, so it does not depend on colour alone */
+mark.hit { background: #3b2a08; color: #fde68a; font-weight: 700; text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; border-radius: 4px; padding: 0 2px; }
+.phrases, .actions-list { margin: 0; padding-left: 1.2rem; display: grid; gap: 4px; }
+.reasons .tag-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+@media (max-width: 480px) { .msg-controls { flex-direction: column; align-items: stretch; } }

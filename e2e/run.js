@@ -222,6 +222,97 @@ const server = http
     check("link checker: an empty box asks for an address", /type or paste/i.test(out));
     check("link checker: the typed address is not kept in the page after checking", !(await dash.textContent("#link-result")).includes("javascript"));
 
+    // ---- 6c. Step 4: multilingual message checker (new checks, added after the Step 1 and Step 2 checks)
+    const checkMessage = async (text, language) => {
+      await dash.selectOption("#msg-language", language || "auto");
+      await dash.fill("#msg-input", text);
+      await dash.click("#msg-analyze");
+      await sleep(500);
+      return dash.textContent("#msg-result");
+    };
+    check("message checker: the section has a text box, a language list, Analyze and Clear", (await dash.$("#msg-input")) !== null && (await dash.$$eval("#msg-language option", (o) => o.length)) === 5 && /Analyze/.test(await dash.textContent("#msg-analyze")) && /Clear/.test(await dash.textContent("#msg-clear")));
+    check("message checker: before any check nothing is claimed (no result shown)", (await dash.textContent("#msg-result")).trim() === "");
+
+    let msgOut = await checkMessage("Dear customer, your SBI KYC is pending. Your account will be blocked today. Click here to update immediately.");
+    check("message checker (English): fake KYC is High or Critical risk with the scam type named", /(High|Critical) risk/.test(msgOut) && /Fake KYC update/.test(msgOut), (await dash.textContent("#msg-result .pill")));
+    check("message checker: risk has a label AND a shape (not colour alone)", (await dash.$("#msg-result .pill-danger, #msg-result .pill-critical")) !== null && /risk/.test(await dash.textContent("#msg-result .pill")));
+    check("message checker: the score is shown as a warning level, not a probability", /Warning level \d+ of 100/.test(msgOut) && /not the probability/i.test(msgOut));
+    check("message checker: suspicious phrases are marked in the user's own text", (await dash.$$eval("#msg-result mark.hit", (m) => m.length)) >= 2 && (await dash.$$eval("#msg-result .msg-text mark.hit", (m) => m.every((x) => x.querySelector(".visually-hidden") !== null))));
+    check("message checker: reasons and advice come from the signs found", (await dash.$$eval("#msg-result .reasons li", (l) => l.length)) >= 2 && /KYC/.test(await dash.textContent("#msg-result .reasons")) && (await dash.$$eval("#msg-result .actions-list li", (l) => l.length)) >= 1);
+    check("message checker: the language is shown as a best guess", /Language: English/.test(msgOut) && /best guess/i.test(msgOut));
+    check("message checker: Prevy appears next to the result", (await dash.$("#msg-result .verdict svg")) !== null);
+    await dash.screenshot({ path: path.join(SHOTS, "9-message-checker-high.png"), fullPage: true });
+
+    msgOut = await checkMessage("प्रिय ग्राहक, आपका केवाईसी अपडेट अधूरा है। आपका खाता आज बंद हो जाएगा। तुरंत लिंक पर क्लिक करें।");
+    check("message checker (Hindi script): fake KYC is detected and the language is Hindi", /Fake KYC update/.test(msgOut) && /Language: Hindi/.test(msgOut) && (await dash.$$eval("#msg-result mark.hit", (m) => m.length)) >= 1);
+    msgOut = await checkMessage("சிபிஐ அதிகாரி பேசுகிறேன். உங்கள் மீது பணமோசடி வழக்கு உள்ளது. டிஜிட்டல் கைது செய்யப்பட்டுள்ளீர்கள். யாரிடமும் சொல்ல வேண்டாம்.");
+    check("message checker (Tamil): digital arrest is Critical risk with its own shape", /Critical risk/.test(msgOut) && (await dash.$("#msg-result .pill-critical")) !== null && /Language: Tamil/.test(msgOut));
+    msgOut = await checkMessage("Sir aapka OTP bata do, abhi turant.");
+    check("message checker (Hinglish): an OTP request is detected", /OTP, PIN or password request/.test(msgOut) && /Language: Hinglish/.test(msgOut) && /Never share your OTP/i.test(msgOut));
+    msgOut = await checkMessage("Aapka parcel customs mein ruka hai. Delivery fee Rs 50 pay karein.", "hinglish");
+    check("message checker: choosing a language is respected", /Fake parcel or delivery fee/.test(msgOut));
+
+    msgOut = await checkMessage("Rs 2,500.00 debited from A/c XX1234 on 15-Nov. If this was not you, call 1800 1234 or visit your nearest branch.");
+    check("message checker: a genuine bank alert is Low risk and nothing is marked", /Low risk/.test(msgOut) && (await dash.$$eval("#msg-result mark.hit", (m) => m.length)) === 0 && /No specific kind of scam/.test(msgOut));
+    msgOut = await checkMessage("123456 is your OTP for login. Do not share it with anyone.");
+    check("message checker: 'do not share your OTP' is not treated as an OTP request", /Low risk/.test(msgOut) && !/OTP, PIN or password request/.test(msgOut));
+    msgOut = await checkMessage("Hi, are we meeting for lunch tomorrow?");
+    check("message checker: an ordinary message gets no needless warning and is not called safe", /Low risk/.test(msgOut) && /No strong warning signs/.test(msgOut) && /not (?:a guarantee|proof of safety)/i.test(msgOut));
+
+    msgOut = await checkMessage("Your KYC is pending. Update immediately at https://sbi-kyc-update.xyz/login");
+    check("message checker: a link inside the message is also checked", /1 link inside it/.test(msgOut) && /Website address/.test(msgOut));
+
+    msgOut = await checkMessage("   ");
+    check("message checker: an empty message asks for text", /Paste a message/i.test(msgOut));
+    await dash.fill("#msg-input", "Share your OTP now");
+    await dash.click("#msg-clear");
+    check("message checker: Clear empties the box and the result", (await dash.inputValue("#msg-input")) === "" && (await dash.textContent("#msg-result")).trim() === "" && /^0 of/.test(await dash.textContent("#msg-count")));
+    await dash.fill("#msg-input", "x".repeat(6000));
+    check("message checker: the box stops at 5000 characters", (await dash.inputValue("#msg-input")).length === 5000);
+    await dash.click("#msg-clear");
+
+    // protection off -> the message checker does nothing
+    await dash.evaluate(() => chrome.runtime.sendMessage({ type: "prevenza/update-settings", payload: { settings: { enabled: false } } }));
+    msgOut = await checkMessage("Please share your OTP now");
+    check("message checker: protection off means the message is not analysed", /Protection is off/.test(msgOut) && (await dash.$("#msg-result .pill")) === null);
+    await dash.evaluate(() => chrome.runtime.sendMessage({ type: "prevenza/update-settings", payload: { settings: { enabled: true } } }));
+
+    // privacy, and the strict message shape
+    const privateText = "ZQX-private-marker-4471 please share your OTP";
+    await checkMessage(privateText);
+    const afterMessages = JSON.stringify(await sw.evaluate(() => chrome.storage.local.get(null)));
+    check("message checker: no pasted message is stored anywhere", !/ZQX|private-marker|OTP|KYC|केवाईसी|parcel|sbi-kyc/i.test(afterMessages), "storage keys: " + Object.keys(JSON.parse(afterMessages)).join(", "));
+    const extra = await dash.evaluate(() => chrome.runtime.sendMessage({ type: "prevenza/scan-message", payload: { text: "hi", url: "https://example.com/x?token=1" } }));
+    check("message checker: the background refuses a message that carries extra fields", extra.ok === false && extra.error === "bad-payload");
+    await dash.click("#msg-clear");
+
+    // narrow screen and elder mode (elder mode was switched on earlier in this run, so this page is already in it)
+    await dash.setViewportSize({ width: 390, height: 844 });
+    await checkMessage("Dear customer, your SBI KYC is pending. Your account will be blocked today. Click here to update immediately https://sbi-kyc-update.xyz/login");
+    check("message checker: a long result does not scroll sideways on a phone-sized window", (await dash.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)) === false);
+    const sizes = await dash.evaluate(() => ({
+      elder: document.documentElement.getAttribute("data-elder"),
+      font: parseFloat(getComputedStyle(document.documentElement).fontSize),
+      analyze: document.getElementById("msg-analyze").getBoundingClientRect().height,
+      clear: document.getElementById("msg-clear").getBoundingClientRect().height,
+      select: document.getElementById("msg-language").getBoundingClientRect().height,
+    }));
+    check("message checker: elder mode enlarges the text and every control stays at least 44px tall", sizes.elder === "true" && sizes.font >= 20 && sizes.analyze >= 44 && sizes.clear >= 44 && sizes.select >= 44, JSON.stringify(sizes));
+    await dash.screenshot({ path: path.join(SHOTS, "10-message-checker-mobile.png"), fullPage: true });
+    await dash.setViewportSize({ width: 1100, height: 900 });
+    await dash.click("#msg-clear");
+    const popup3 = await ctx.newPage();
+    watch(popup3, "popup shortcut");
+    await popup3.setViewportSize({ width: 380, height: 640 });
+    await popup3.goto(`chrome-extension://${id}/src/popup/popup.html`);
+    await popup3.waitForSelector("#open-message-check");
+    const opened = ctx.waitForEvent("page", { timeout: 5000 }).catch(() => null);
+    await popup3.click("#open-message-check");
+    const msgTab = await opened;
+    await sleep(500);
+    check("popup: 'Check a message' opens the dashboard at the message checker", !!msgTab && /dashboard\.html#message-check$/.test(msgTab.url()), msgTab ? msgTab.url() : "no tab opened");
+    if (msgTab) await msgTab.close().catch(() => undefined);
+
     // The popup on a real website tab (the page is served from a look-alike name by the test browser, no real network)
     const scam = await ctx.newPage();
     watch(scam, "look-alike site");

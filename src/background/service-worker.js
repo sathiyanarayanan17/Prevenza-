@@ -9,6 +9,10 @@ importScripts(
   "../shared/storage.js",
   "../shared/url-rules.js",
   "../shared/url-intel.js",
+  "../shared/risk-rules.js",
+  "../shared/risk-engine.js",
+  "../shared/message-rules.js",
+  "../shared/message-scan.js",
   "./handler.js"
 );
 
@@ -34,6 +38,8 @@ const background = H.createBackground({
   version: chrome.runtime.getManifest().version,
   broadcast,
   urlIntel: H.urlIntel,
+  messageScan: H.messageScan,
+  riskEngine: H.riskEngine,
 });
 
 chrome.runtime.onInstalled.addListener(() => {

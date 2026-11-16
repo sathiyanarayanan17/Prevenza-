@@ -108,6 +108,18 @@ select, input[type="text"] {
   min-height: 44px;
 }
 select:focus, input[type="text"]:focus { border-color: var(--blue); }
+textarea {
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  width: 100%;
+  min-height: 140px;
+  resize: vertical;
+}
+textarea:focus { border-color: var(--blue); }
 
 /* risk indicators: colour is never the only signal, every pill also has a text label and a shape */
 .pill { display: inline-flex; align-items: center; gap: 8px; padding: 4px 12px 4px 10px; border-radius: 999px; font-weight: 600; font-size: 0.875rem; border: 1px solid transparent; }
@@ -122,6 +134,9 @@ select:focus, input[type="text"]:focus { border-color: var(--blue); }
 .pill-caution::before { clip-path: polygon(50% 0, 100% 100%, 0 100%); }
 .pill-danger { color: #fca5a5; background: #2d1013; border-color: #7a1f27; }
 .pill-danger::before { transform: rotate(45deg); }
+/* critical: an eight-sided stop shape, a heavier border and its own label, so it differs from "danger" without colour */
+.pill-critical { color: #fecaca; background: #3b0d12; border: 2px solid #ef4444; padding: 3px 11px 3px 9px; }
+.pill-critical::before { clip-path: polygon(30% 0, 70% 0, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0 70%, 0 30%); width: 12px; height: 12px; }
 
 .legend { display: grid; gap: 8px; margin: 10px 0 0; padding: 0; list-style: none; }
 .legend li { display: grid; grid-template-columns: 9.5rem 1fr; align-items: center; gap: 10px; }

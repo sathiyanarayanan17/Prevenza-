@@ -58,6 +58,24 @@
     el.textContent = risk.label;
   }
 
+  // The central risk engine uses four categories. Each has a text label and its own shape (see theme.css).
+  const CATEGORY_PILLS = {
+    LOW: { cls: "pill-low", label: "Low risk" },
+    MEDIUM: { cls: "pill-caution", label: "Medium risk" },
+    HIGH: { cls: "pill-danger", label: "High risk" },
+    CRITICAL: { cls: "pill-critical", label: "Critical risk" },
+    INCONCLUSIVE: { cls: "pill-unknown", label: "Inconclusive" },
+    NOT_SCANNED: { cls: "pill-unknown", label: "Not scanned yet" },
+  };
+
+  /** Set a pill from a risk-engine category. Unknown values show "Not scanned yet". */
+  function setCategoryPill(el, category) {
+    ["pill-unknown", "pill-low", "pill-caution", "pill-danger", "pill-critical"].forEach((c) => el.classList.remove(c));
+    const pill = CATEGORY_PILLS[category] || CATEGORY_PILLS.NOT_SCANNED;
+    el.classList.add(pill.cls);
+    el.textContent = pill.label;
+  }
+
   const SEVERITY_WORDS = { high: "Strong sign", medium: "Warning sign", low: "Minor sign", info: "Note" };
 
   /** Fill a <ul> with the reasons from an analysis, in plain language. Text only, never HTML. */
@@ -86,5 +104,5 @@
     }
   }
 
-  H.ui = { placeMascots, applyPrefs, toast, formatDate, setRiskPill, renderIndicators };
+  H.ui = { placeMascots, applyPrefs, toast, formatDate, setRiskPill, setCategoryPill, renderIndicators };
 })();
