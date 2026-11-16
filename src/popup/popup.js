@@ -126,6 +126,12 @@
     window.close();
   });
 
+  // Elder Mode: the guide is information only, and it lives on the dashboard for the same reason as the message checker.
+  $("open-trust").addEventListener("click", () => {
+    chrome.tabs.create({ url: chrome.runtime.getURL("src/dashboard/dashboard.html#trust-guide") });
+    window.close();
+  });
+
   el.preview.addEventListener("click", async () => {
     const reply = await H.messaging.sendToActiveTab({ type: MSG.PREVIEW_ASSISTANT });
     if (reply.ok && reply.shown) {

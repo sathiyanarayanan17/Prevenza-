@@ -17,18 +17,26 @@
       </div>
     </div>
     <nav class="nav" aria-label="Pages">
-      <a class="btn" href="../settings/settings.html">Settings</a>
+      <a class="btn" href="../settings/settings.html" data-i18n="nav_settings">Settings</a>
     </nav>
   </header>
 
   <main class="wrap">
     <section class="hero card" aria-labelledby="hero-h">
       <div class="hero-text">
-        <h1 id="hero-h">Pause. Let's check first.</h1>
+        <h1 id="hero-h" data-i18n="dash_hero">Pause. Let's check first.</h1>
         <p class="muted" id="hero-sub">Loading...</p>
       </div>
       <span class="pill pill-unknown" id="overall-pill">Not scanned yet</span>
     </section>
+
+    <section class="card elder-only" aria-labelledby="trust-h" id="trust-guide">
+      <h2 id="trust-h" data-i18n="trust_title">Ask someone you trust</h2>
+      <p class="muted" data-i18n="trust_sub">Not sure about something? Read this before you send money or share any details.</p>
+      <div id="trust-slot"></div>
+    </section>
+
+    <h2 class="elder-only" id="more-tools" data-i18n="dash_more">More tools and information</h2>
 
     <section class="stats" aria-label="Summary">
       <article class="stat card"><h3>Protection</h3><p class="num" id="stat-protection">-</p><p class="muted small">Master switch</p></article>
@@ -55,18 +63,18 @@
     </section>
 
     <section class="card" aria-labelledby="link-h" id="link-check">
-      <h2 id="link-h">Check a link</h2>
+      <h2 id="link-h" data-i18n="dash_link">Check a link</h2>
       <p class="muted small">Paste a web address you were sent. It is checked on your device. Nothing is saved or sent anywhere.</p>
       <form class="link-form" id="link-form" autocomplete="off">
         <label class="visually-hidden" for="link-input">Web address to check</label>
         <input type="text" id="link-input" maxlength="2048" placeholder="Paste a link here" spellcheck="false" inputmode="url" autocomplete="off">
-        <button class="btn btn-primary" type="submit">Check link</button>
+        <button class="btn btn-primary" type="submit" data-i18n="btn_check_link">Check link</button>
       </form>
       <div id="link-result" class="link-result" aria-live="polite"></div>
     </section>
 
     <section class="card" aria-labelledby="msg-h" id="message-check">
-      <h2 id="msg-h">Check a message</h2>
+      <h2 id="msg-h" data-i18n="dash_message">Check a message</h2>
       <p class="muted small">Paste a message you received by SMS, WhatsApp or email. It is checked on your device. Nothing is saved or sent anywhere, and Prevenza never reads your messages by itself.</p>
       <form class="msg-form" id="msg-form" autocomplete="off">
         <label class="row-title" for="msg-input">Message text</label>
@@ -75,15 +83,15 @@
         <div class="msg-controls">
           <label for="msg-language">Language</label>
           <select id="msg-language"></select>
-          <button class="btn btn-primary" type="submit" id="msg-analyze">Analyze message</button>
-          <button class="btn" type="button" id="msg-clear">Clear</button>
+          <button class="btn btn-primary" type="submit" id="msg-analyze" data-i18n="btn_analyze_message">Analyze message</button>
+          <button class="btn" type="button" id="msg-clear" data-i18n="btn_clear">Clear</button>
         </div>
       </form>
       <div id="msg-result" class="msg-result" aria-live="polite"></div>
     </section>
 
     <section class="card" aria-labelledby="upi-h" id="upi-check">
-      <h2 id="upi-h">Check a UPI payment</h2>
+      <h2 id="upi-h" data-i18n="dash_upi">Check a UPI payment</h2>
       <p class="muted small">Type the details of a payment you are about to make, or were asked to make. They are checked on your device. Nothing is saved or sent anywhere. Prevenza cannot see your UPI app, and it cannot stop or cancel a payment.</p>
       <p class="notice" role="note"><strong>Never type your UPI PIN or an OTP here.</strong> Prevenza does not need them and will never ask for them.</p>
       <form class="upi-form" id="upi-form" autocomplete="off">
@@ -109,20 +117,20 @@
           <p class="muted small" id="upi-qr-help">Paste the text your QR scanner shows. Prevenza does not use your camera or scan your screen.</p>
         </div>
         <div class="btn-row wide">
-          <button class="btn btn-primary" type="submit" id="upi-analyze">Analyze payment</button>
-          <button class="btn" type="button" id="upi-clear">Clear</button>
+          <button class="btn btn-primary" type="submit" id="upi-analyze" data-i18n="btn_analyze_payment">Analyze payment</button>
+          <button class="btn" type="button" id="upi-clear" data-i18n="btn_clear">Clear</button>
         </div>
       </form>
       <div id="upi-result" class="msg-result" aria-live="polite"></div>
     </section>
 
     <section class="card" aria-labelledby="shot-h" id="screenshot-check">
-      <h2 id="shot-h">Check a screenshot</h2>
+      <h2 id="shot-h" data-i18n="dash_shot">Check a screenshot</h2>
       <p class="muted small">Choose a screenshot you saved yourself, such as a chat or a payment receipt. Prevenza reads the text on your device. The image and the text are never saved or sent anywhere. Prevenza cannot see WhatsApp, your bank or your UPI app, and it never takes screenshots by itself.</p>
       <p class="notice" role="note"><strong>Do not trust a payment screenshot alone.</strong> Verify the payment in your own bank or UPI application.</p>
       <div class="shot-pick">
         <input type="file" id="shot-file" class="visually-hidden" accept="image/png,image/jpeg">
-        <label class="btn btn-primary" for="shot-file" id="shot-file-label">Choose a screenshot</label>
+        <label class="btn btn-primary" for="shot-file" id="shot-file-label" data-i18n="btn_choose_shot">Choose a screenshot</label>
         <span class="muted small" id="shot-file-name">No image chosen. PNG or JPEG, up to 8 MB.</span>
       </div>
       <div class="msg-controls">
@@ -133,7 +141,7 @@
         <img id="shot-img" alt="Preview of the screenshot you chose">
       </div>
       <div class="btn-row">
-        <button class="btn btn-primary" type="button" id="shot-analyze" disabled>Read and check screenshot</button>
+        <button class="btn btn-primary" type="button" id="shot-analyze" data-i18n="btn_read_shot" disabled>Read and check screenshot</button>
         <button class="btn" type="button" id="shot-remove" disabled>Remove image</button>
         <button class="btn" type="button" id="shot-clear">Clear all</button>
       </div>
@@ -150,7 +158,7 @@
       <div id="shot-result" class="msg-result" aria-live="polite"></div>
     </section>
 
-    <section class="card" aria-labelledby="road-h">
+    <section class="card" aria-labelledby="road-h" id="road-card">
       <h2 id="road-h">What is coming</h2>
       <p class="muted small">Link checks, message checks, UPI payment checks and screenshot checks are ready. These features are planned and are not active yet.</p>
       <ul class="road" id="road"></ul>
@@ -166,6 +174,9 @@
   <script src="../shared/messaging.js"></script>
   <script src="../shared/ui.js"></script>
   <script src="../shared/holdy-text.js"></script>
+  <script src="../shared/elder-text.js"></script>
+  <script src="../shared/i18n.js"></script>
+  <script src="../shared/family-guide.js"></script>
   <script src="../shared/holdy.js"></script>
   <script src="../shared/holdy-card.js"></script>
   <script src="dashboard.js"></script>

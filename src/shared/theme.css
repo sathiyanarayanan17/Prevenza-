@@ -21,7 +21,7 @@
 
 * { box-sizing: border-box; }
 html { font-size: 16px; }
-html[data-elder="true"] { font-size: 20px; }
+html[data-elder="true"] { font-size: 22px; }
 
 body {
   margin: 0;
@@ -189,4 +189,103 @@ details.why summary { cursor: pointer; font-weight: 600; min-height: 32px; }
 
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
+}
+
+/* ==== Elder Mode (Step 8) ==== */
+/* Pieces that exist only for Elder Mode stay out of the normal interface. */
+html:not([data-elder="true"]) .elder-only { display: none; }
+
+/* The family guide button and panel (information only) */
+.family { display: grid; gap: 10px; margin-top: 4px; min-width: 0; }
+.btn-trust { border-width: 2px; border-color: var(--blue); font-weight: 600; }
+.btn-trust::before { content: "\24D8"; font-size: 1.2em; line-height: 1; }
+.family-panel { border: 2px dashed var(--blue); border-radius: 12px; padding: 12px 14px; background: var(--bg); display: grid; gap: 8px; min-width: 0; overflow-wrap: anywhere; }
+.family-panel:focus { outline: 3px solid var(--focus); outline-offset: 2px; }
+.family-points { display: grid; gap: 8px; }
+.family-points p::before { content: "\2192\00a0"; font-weight: 700; }
+
+/* Elder Mode: larger text, more space, stronger contrast, bigger buttons. Every colour pair stays high contrast. */
+html[data-elder="true"] {
+  --text: #ffffff;
+  --muted: #dbe5f8;
+  --line: #6c86bd;
+  --surface: #16264a;
+  --bg: #050a14;
+  --focus: #ffd24a;
+}
+/* Chrome shrinks system-ui text to 0.75 of the root size, so Elder Mode sets the body size outright (a real 22px) */
+html[data-elder="true"] body { font-size: 1rem; line-height: 1.7; }
+html[data-elder="true"] .small { font-size: 0.95rem; }
+html[data-elder="true"] h1 { font-size: 1.7rem; }
+html[data-elder="true"] h2 { font-size: 1.35rem; margin-bottom: 8px; }
+html[data-elder="true"] .card { padding: 22px; border-width: 2px; }
+html[data-elder="true"] .card + .card { margin-top: 18px; }
+html[data-elder="true"] .btn { min-height: 56px; padding: 14px 22px; font-weight: 600; border-width: 2px; max-width: 100%; overflow-wrap: anywhere; text-align: center; }
+html[data-elder="true"] .btn-row { gap: 14px; }
+html[data-elder="true"] .btn-primary { border-color: #ffffff; }
+html[data-elder="true"] .btn-danger { color: #ffffff; border-color: #fca5a5; }
+html[data-elder="true"] select, html[data-elder="true"] input[type="text"] { min-height: 56px; border-width: 2px; max-width: 100%; }
+html[data-elder="true"] textarea { border-width: 2px; min-height: 160px; }
+html[data-elder="true"] :focus-visible { outline-width: 4px; outline-offset: 3px; }
+html[data-elder="true"] .switch { width: 76px; height: 42px; }
+html[data-elder="true"] .switch .track::after { top: 4px; left: 4px; width: 32px; height: 32px; }
+html[data-elder="true"] .switch input:checked + .track::after { transform: translateX(34px); }
+html[data-elder="true"] .pill { font-size: 1rem; padding: 6px 16px 6px 12px; border-width: 2px; }
+html[data-elder="true"] .pill::before { width: 14px; height: 14px; }
+html[data-elder="true"] .row { padding: 16px 0; }
+html[data-elder="true"] .reasons li, html[data-elder="true"] .checks li, html[data-elder="true"] .road li { padding: 12px 14px; }
+
+/* Elder Mode warning card: a heavy border, a clear headline, then what we found, why, and what to do */
+html[data-elder="true"] .holdy { border: 3px solid var(--line); border-left-width: 12px; padding: 20px; gap: 14px; }
+html[data-elder="true"] .holdy[data-level="CRITICAL"] { border-left-style: double; border-left-width: 16px; }
+html[data-elder="true"] .holdy-head h3 { font-size: 1.3rem; }
+html[data-elder="true"] .holdy-tier { font-size: 0.95rem; padding: 4px 12px; border-width: 2px; }
+html[data-elder="true"] .holdy-icon { min-width: 1.6em; height: 1.6em; font-size: 0.9rem; }
+html[data-elder="true"] .holdy-note { padding: 14px 16px; border-width: 2px; gap: 12px; }
+.holdy-elder { display: grid; gap: 8px; padding: 14px; border: 2px solid var(--line); border-radius: 10px; background: var(--surface); min-width: 0; }
+.holdy-elder .holdy-label { margin-top: 6px; font-size: 1.05rem; }
+.holdy-elder .holdy-label:first-child { margin-top: 0; }
+.holdy-found { font-weight: 700; font-size: 1.1rem; }
+.holdy-do { display: grid; gap: 10px; }
+.holdy-step { display: flex; gap: 12px; align-items: flex-start; font-weight: 600; }
+.holdy-step-no { flex: none; display: inline-grid; place-items: center; width: 1.9em; height: 1.9em; border-radius: 50%; border: 3px solid currentColor; font-weight: 800; }
+.holdy-more { border-top: 2px solid var(--line); padding-top: 10px; }
+.holdy-more > * + * { margin-top: 8px; }
+.holdy-more > summary { cursor: pointer; font-weight: 700; min-height: 44px; display: flex; align-items: center; }
+
+/* Elder Mode dashboard: one column, the checks first, the technical parts last */
+html[data-elder="true"] .wrap { max-width: 860px; gap: 22px; }
+html[data-elder="true"] .wrap > .hero { order: 0; }
+html[data-elder="true"] .wrap > #trust-guide { order: 1; }
+html[data-elder="true"] .wrap > #link-check { order: 2; }
+html[data-elder="true"] .wrap > #message-check { order: 3; }
+html[data-elder="true"] .wrap > #upi-check { order: 4; }
+html[data-elder="true"] .wrap > #screenshot-check { order: 5; }
+html[data-elder="true"] .wrap > #more-tools { order: 10; }
+html[data-elder="true"] .wrap > .stats { order: 11; grid-template-columns: 1fr 1fr; }
+html[data-elder="true"] .wrap > .two { order: 12; grid-template-columns: 1fr; }
+html[data-elder="true"] .wrap > #road-card { order: 13; }
+html[data-elder="true"] .hero { border-left: 10px solid var(--blue); }
+html[data-elder="true"] .road { grid-template-columns: 1fr; }
+html[data-elder="true"] .link-form { flex-direction: column; }
+html[data-elder="true"] body.popup { width: 440px; }
+html[data-elder="true"] .legend li { grid-template-columns: 1fr; gap: 4px; }
+/* Elder Mode on a phone: keep the large text, but give the words the width (thinner borders, less padding, one column) */
+@media (max-width: 480px) {
+  html[data-elder="true"] .wrap { padding-left: 10px; padding-right: 10px; gap: 16px; }
+  html[data-elder="true"] .page-head { padding-left: 10px; padding-right: 10px; }
+  html[data-elder="true"] .card { padding: 14px; }
+  html[data-elder="true"] .wrap > .stats { grid-template-columns: 1fr; }
+  html[data-elder="true"] .holdy { padding: 12px; border-left-width: 8px; }
+  html[data-elder="true"] .holdy[data-level="CRITICAL"] { border-left-width: 10px; }
+  html[data-elder="true"] .holdy-elder { padding: 10px; }
+  html[data-elder="true"] .family-panel { padding: 10px; }
+  html[data-elder="true"] .hero { border-left-width: 6px; }
+}
+/* Elder Mode: long words and wide lists must wrap instead of pushing the page sideways */
+html[data-elder="true"] .msg-form, html[data-elder="true"] .upi-form { grid-template-columns: minmax(0, 1fr); }
+html[data-elder="true"] .msg-form > *, html[data-elder="true"] .upi-form > *, html[data-elder="true"] .msg-controls > * { min-width: 0; }
+html[data-elder="true"] .msg-controls select, html[data-elder="true"] .msg-controls .btn { max-width: 100%; }
+@media (max-width: 480px) {
+  html[data-elder="true"] .msg-controls select { width: 100%; }
 }

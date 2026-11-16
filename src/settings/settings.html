@@ -17,13 +17,13 @@
       </div>
     </div>
     <nav class="nav" aria-label="Pages">
-      <a class="btn" href="../dashboard/dashboard.html">Dashboard</a>
+      <a class="btn" href="../dashboard/dashboard.html" data-i18n="nav_dashboard">Dashboard</a>
     </nav>
   </header>
 
   <main class="wrap">
     <section class="card" aria-labelledby="general-h">
-      <h2 id="general-h">General</h2>
+      <h2 id="general-h" data-i18n="set_general">General</h2>
       <div class="row">
         <div class="row-text">
           <div class="row-title">Protection</div>
@@ -33,8 +33,8 @@
       </div>
       <div class="row">
         <div class="row-text">
-          <label class="row-title" for="language">Language</label>
-          <p class="muted small">Interface language. Translations arrive in a later step.</p>
+          <label class="row-title" for="language">Language / भाषा / மொழி</label>
+          <p class="muted small" id="language-help" data-i18n="set_language_help">Prevy's warnings, the Ask someone you trust guide and the main headings and buttons change. Other details stay in English.</p>
         </div>
         <select id="language"></select>
       </div>
@@ -48,11 +48,11 @@
     </section>
 
     <section class="card" aria-labelledby="assistant-h">
-      <h2 id="assistant-h">Assistant and accessibility</h2>
+      <h2 id="assistant-h" data-i18n="set_assistant">Assistant and accessibility</h2>
       <div class="row">
         <div class="row-text">
-          <div class="row-title">Elder mode</div>
-          <p class="muted small">Larger text and bigger buttons everywhere.</p>
+          <div class="row-title" data-i18n="set_elder">Elder mode</div>
+          <p class="muted small" id="elder-help" data-i18n="set_elder_help">Bigger text and buttons, stronger contrast, simple words and a simpler dashboard.</p>
         </div>
         <label class="switch"><input type="checkbox" id="elderMode" role="switch" aria-label="Elder mode"><span class="track"></span></label>
       </div>
@@ -100,6 +100,7 @@
 
   <script src="../shared/constants.js"></script>
   <script src="../shared/settings.js"></script>
+  <script src="../shared/i18n.js"></script>
   <script src="../shared/mascot.js"></script>
   <script src="../shared/messaging.js"></script>
   <script src="../shared/ui.js"></script>

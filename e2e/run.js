@@ -6,6 +6,8 @@ const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
+const ET = require("../src/shared/elder-text.js");
+const I18N = require("../src/shared/i18n.js");
 
 const EXT = path.join(__dirname, "..");
 const SHOTS = path.join(__dirname, "shots");
@@ -768,6 +770,292 @@ const server = http
     check("the popup on a real tab made no network requests", popup2Requests.every((u) => u.startsWith("chrome-extension://") || u.startsWith("data:")), popup2Requests.length + " local requests");
     await scam.close();
 
+    // ---- 6g. Step 8: Elder Mode, plain explanations, languages and the family guide (new checks, added after the Step 1 to 7 checks)
+    const URL_SETTINGS = `chrome-extension://${id}/src/settings/settings.html`;
+    const URL_DASH = `chrome-extension://${id}/src/dashboard/dashboard.html`;
+    const URL_POPUP = `chrome-extension://${id}/src/popup/popup.html`;
+    const step8Requests = [];
+    const storedSettings = async () => (await sw.evaluate(() => chrome.storage.local.get("prevenza.settings")))["prevenza.settings"];
+    const reloadDash = async () => {
+      await dash.reload();
+      await dash.waitForSelector("#legend li");
+      await sleep(500);
+    };
+    const px = (page, sel, prop) => page.evaluate(([s, p]) => parseFloat(getComputedStyle(document.querySelector(s))[p]), [sel, prop]);
+    const visibleHeights = (page, sel) => page.$$eval(sel, (els) => els.map((e) => e.getBoundingClientRect().height).filter((h) => h > 0));
+    const ratios = (page) => page.evaluate(() => {
+      const cs = getComputedStyle(document.documentElement);
+      const v = (n) => cs.getPropertyValue(n).trim();
+      const lum = (hex) => {
+        const n = parseInt(hex.replace("#", ""), 16);
+        const f = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+        return 0.2126 * f((n >> 16) & 255) + 0.7152 * f((n >> 8) & 255) + 0.0722 * f(n & 255);
+      };
+      const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+      return { text: ratio(v("--text"), v("--bg")), muted: ratio(v("--muted"), v("--bg")), mutedOnCard: ratio(v("--muted"), v("--surface")) };
+    });
+    const elderCardInfo = (sel) => dash.evaluate((s) => {
+      const box = document.querySelector(s + " .holdy");
+      if (!box) return null;
+      const panel = box.querySelector(".holdy-elder");
+      const details = box.querySelector("details.holdy-more");
+      const btns = [...box.querySelectorAll("button")].map((b) => b.getBoundingClientRect().height).filter((h) => h > 0);
+      return {
+        tier: box.dataset.tier, role: box.getAttribute("role"), repeat: box.dataset.repeat === "true",
+        h3: box.querySelector("h3").textContent, tierLabel: box.querySelector(".holdy-tier").textContent,
+        hasIcon: !!box.querySelector(".holdy-tier .holdy-icon"),
+        labels: panel ? [...panel.querySelectorAll(".holdy-label")].map((x) => x.textContent) : [],
+        found: panel && panel.querySelector(".holdy-found") ? panel.querySelector(".holdy-found").textContent : "",
+        why: panel && panel.querySelector(".holdy-why") ? panel.querySelector(".holdy-why").textContent : "",
+        steps: panel ? [...panel.querySelectorAll(".holdy-step")].map((x) => x.lastChild.textContent) : [],
+        liCount: box.querySelectorAll("li").length,
+        trust: box.querySelector(".btn-trust") ? box.querySelector(".btn-trust").textContent : "",
+        detailsOpen: details ? details.open : null,
+        foundSize: panel ? parseFloat(getComputedStyle(panel.querySelector(".holdy-found")).fontSize) : 0,
+        minButton: btns.length ? Math.min(...btns) : 0,
+        text: box.textContent,
+      };
+    }, sel);
+    const noteInfo = (sel) => dash.evaluate((s) => {
+      const n = document.querySelector(s + " .holdy-note");
+      return n ? { tier: n.dataset.tier, text: n.textContent, extra: n.querySelector(".holdy-extra") ? n.querySelector(".holdy-extra").textContent : "", trust: !!n.querySelector(".btn-trust"), hasCard: !!document.querySelector(s + " .holdy") } : null;
+    }, sel);
+    const OTP_MSG = "Dear customer, your SBI KYC is pending. Share your OTP immediately or your account will be blocked.";
+
+    // -- the setting: off, on, and what changes
+    await settings.reload();
+    await settings.waitForSelector("#elderMode", { state: "attached" });
+    await sleep(500);
+    check("Elder Mode (settings): the toggle starts on, with a plain description of what it changes", (await settings.isChecked("#elderMode")) === true && /bigger text and buttons, stronger contrast, simple words and a simpler dashboard/i.test(await settings.textContent("#elder-help")));
+    await settings.click("#elderMode", { force: true });
+    await sleep(600);
+    const e8Off = { stored: await storedSettings(), attr: await settings.getAttribute("html", "data-elder"), font: await px(settings, "html", "fontSize"), btn: Math.min(...(await visibleHeights(settings, ".btn"))), select: await px(settings, "#language", "height"), ratios: await ratios(settings), spacing: await px(settings, ".card", "paddingTop") };
+    check("Elder Mode off: the choice is saved and the normal interface comes back", e8Off.stored.elderMode === false && e8Off.attr === "false" && e8Off.font === 16, e8Off.font + "px");
+    await settings.click("#elderMode", { force: true });
+    await sleep(600);
+    const e8On = { stored: await storedSettings(), attr: await settings.getAttribute("html", "data-elder"), font: await px(settings, "html", "fontSize"), btn: Math.min(...(await visibleHeights(settings, ".btn"))), select: await px(settings, "#language", "height"), ratios: await ratios(settings), spacing: await px(settings, ".card", "paddingTop") };
+    check("Elder Mode on: the choice is saved", e8On.stored.elderMode === true && e8On.attr === "true");
+    check("Elder Mode: text is larger", e8On.font >= 22 && e8On.font > e8Off.font * 1.3, e8Off.font + "px -> " + e8On.font + "px");
+    check("Elder Mode: buttons and lists are larger (at least 56px, bigger than normal)", e8On.btn >= 56 && e8On.btn > e8Off.btn && e8On.select >= 56 && e8On.select > e8Off.select, `button ${e8Off.btn}->${e8On.btn}, list ${e8Off.select}->${e8On.select}`);
+    check("Elder Mode: spacing is larger", e8On.spacing > e8Off.spacing, e8Off.spacing + "px -> " + e8On.spacing + "px");
+    check("Elder Mode: contrast is higher, and at least 7:1 for text", e8On.ratios.text >= 7 && e8On.ratios.muted >= 7 && e8On.ratios.mutedOnCard >= 7 && e8On.ratios.text > e8Off.ratios.text && e8On.ratios.muted > e8Off.ratios.muted, `text ${e8Off.ratios.text.toFixed(1)}->${e8On.ratios.text.toFixed(1)}, muted ${e8Off.ratios.muted.toFixed(1)}->${e8On.ratios.muted.toFixed(1)}`);
+    await settings.screenshot({ path: path.join(SHOTS, "17-elder-settings.png"), fullPage: true });
+
+    // -- it is remembered when pages are closed and opened again
+    const reopened = await ctx.newPage();
+    watch(reopened, "reopened settings");
+    reopened.on("request", (r) => step8Requests.push(r.url()));
+    await reopened.goto(URL_SETTINGS);
+    await reopened.waitForSelector("#elderMode", { state: "attached" });
+    await sleep(500);
+    check("Elder Mode persists: a freshly opened settings page shows it on and large", (await reopened.isChecked("#elderMode")) === true && (await reopened.getAttribute("html", "data-elder")) === "true" && (await px(reopened, "html", "fontSize")) >= 22);
+    await reopened.close();
+    const popupElder = await ctx.newPage();
+    watch(popupElder, "popup (elder)");
+    popupElder.on("request", (r) => step8Requests.push(r.url()));
+    await popupElder.setViewportSize({ width: 460, height: 700 });
+    await popupElder.goto(URL_POPUP);
+    await popupElder.waitForSelector("#protection-sub");
+    await sleep(600);
+    check("Elder Mode persists into the popup: larger text, a visible 'Ask someone you trust' button", (await popupElder.getAttribute("html", "data-elder")) === "true" && (await px(popupElder, "html", "fontSize")) >= 22 && (await popupElder.isVisible("#open-trust")) && /Ask someone you trust/.test(await popupElder.textContent("#open-trust")));
+    check("Elder Mode (popup): every button is at least 56px tall", (await visibleHeights(popupElder, "button.btn")).every((h) => h >= 56), (await visibleHeights(popupElder, "button.btn")).join(","));
+    await popupElder.screenshot({ path: path.join(SHOTS, "18-elder-popup.png") });
+    const trustTab = ctx.waitForEvent("page", { timeout: 8000 });
+    await popupElder.click("#open-trust");
+    const guideTab = await trustTab;
+    guideTab.on("request", (r) => step8Requests.push(r.url()));
+    await guideTab.waitForSelector("#legend li");
+    await sleep(600);
+    check("Elder Mode (popup): 'Ask someone you trust' opens the guide on the dashboard, already open", /#trust-guide$/.test(guideTab.url()) && (await guideTab.isVisible("#trust-slot .family-panel")) && /call someone you trust using a number you already know/.test(await guideTab.textContent("#trust-slot .family-panel")));
+    await guideTab.close();
+    await popupElder.close();
+
+    // -- the dashboard layout
+    await reloadDash();
+    const e8Layout = await dash.evaluate(() => {
+      const top = (s) => document.querySelector(s).getBoundingClientRect().top + scrollY;
+      const shown = (s) => getComputedStyle(document.querySelector(s)).display !== "none";
+      const kids = [...document.querySelector(".two").children].map((c) => c.getBoundingClientRect());
+      return { guide: shown("#trust-guide"), more: shown("#more-tools"), order: ["#trust-guide", "#link-check", "#message-check", "#upi-check", "#screenshot-check", "#more-tools", ".stats", ".two", "#road-card"].map(top), stacked: kids.length === 2 && kids[1].top >= kids[0].bottom - 1 };
+    });
+    check("Elder dashboard: the guide and the four checks come first, technical parts last, in one column", e8Layout.guide && e8Layout.more && e8Layout.order.every((v, i, a) => i === 0 || v > a[i - 1]) && e8Layout.stacked, e8Layout.order.map(Math.round).join(" < "));
+    check("Elder dashboard: the system check and every other feature are still there", (await dash.isVisible("#run-check")) && (await dash.$$eval("#legend li", (l) => l.length)) === 4);
+    await dash.setViewportSize({ width: 1100, height: 900 });
+    await dash.screenshot({ path: path.join(SHOTS, "19-elder-dashboard.png"), fullPage: true });
+
+    // -- the warning card for each level
+    await dash.evaluate(() => self.Prevenza.holdyCard.reset());
+    await msgCard(OTP_MSG);
+    let c8 = await elderCardInfo("#msg-result");
+    check("Elder warning: a clear headline, then what we found, why it can be dangerous, and what to do now", c8 && /^(Hold on!|Stop and check first\.)/.test(c8.h3) && JSON.stringify(c8.labels) === JSON.stringify([ET.en.labels.found, ET.en.labels.why, ET.en.labels.todo]) && c8.why.length > 10, c8 && c8.h3.slice(0, 50));
+    check("Elder warning: plain words for the OTP case ('steal your password or OTP. Never share these details.')", c8.found === "Someone may be trying to steal your password or OTP. Never share these details.", c8.found);
+    check("Elder warning: one or two simple next steps, numbered", c8.steps.length >= 1 && c8.steps.length <= 2 && (await dash.$$eval("#msg-result .holdy-step-no", (n) => n.map((x) => x.textContent).join(","))) === c8.steps.map((s, i) => String(i + 1)).join(","), c8.steps.length + " steps");
+    check("Elder warning: the level is a word AND an icon, announced as an alert, not colour alone", /Warning|Stop/.test(c8.tierLabel) && c8.hasIcon && c8.role === "alert");
+    check("Elder warning: larger text and buttons at least 56px tall", c8.foundSize >= 22 && c8.minButton >= 56, `${c8.foundSize}px text, smallest button ${c8.minButton}px`);
+    check("Elder warning: the Step 7 detail and all five safety steps are still there, in a section that is open and can be closed", c8.detailsOpen === true && c8.liCount === 5);
+    await dash.click("#msg-result details.holdy-more > summary");
+    const closedOpen = await dash.$eval("#msg-result details.holdy-more", (d) => d.open);
+    await dash.click("#msg-result details.holdy-more > summary");
+    check("Elder warning: the extra detail can be closed and opened again", closedOpen === false && (await dash.$eval("#msg-result details.holdy-more", (d) => d.open)) === true);
+    await dash.screenshot({ path: path.join(SHOTS, "20-elder-warning.png") });
+    await sleep(3500);
+    check("Elder safe default: the warning stays until the user acts (nothing is dismissed or approved by itself)", (await elderCardInfo("#msg-result")) !== null && (await dash.$("#msg-result .holdy-note")) === null);
+    await msgCard(OTP_MSG);
+    c8 = await elderCardInfo("#msg-result");
+    check("Elder safe default: a repeat of the same result still shows the full plain explanation", c8 && c8.repeat === true && c8.found.length > 0 && c8.steps.length >= 1 && /showed you this warning a moment ago/.test(c8.text));
+    await dash.click("#msg-result .holdy button:has-text('Show details')");
+    await dash.click("#msg-result .holdy button:has-text('Dismiss')");
+    const hidden8 = await noteInfo("#msg-result");
+    check("Elder safe default: dismissing is the user's own choice and the note still names the level, never 'safe'", hidden8 && /The result is still (High|Critical) risk/.test(hidden8.text) && !/\bsafe\b/i.test(hidden8.text));
+    await dash.evaluate(() => self.Prevenza.holdyCard.reset());
+
+    await msgCard("Your KYC is pending, please update it.");
+    c8 = await elderCardInfo("#msg-result");
+    check("Elder warning (MEDIUM): a caution card with the plain explanation, announced politely", c8 && c8.tier === "caution" && c8.role === "status" && /Caution/.test(c8.tierLabel) && c8.found.length > 0 && c8.steps.length >= 1);
+    await msgCard("This is CBI officer. A case of money laundering is registered against your Aadhaar. You are under digital arrest. Do not tell anyone.");
+    c8 = await elderCardInfo("#msg-result");
+    check("Elder warning (CRITICAL): a 'stop' card that says police do not arrest people over a call", c8 && c8.tier === "stop" && /Stop/.test(c8.tierLabel) && /police or officers will arrest you/.test(c8.found) && /do not arrest people over a phone call/.test(c8.why), c8 && c8.found.slice(0, 40));
+    await msgCard("Congratulations! You have won the lucky draw jackpot of 25 lakh. Pay the processing fee to claim your prize.");
+    c8 = await elderCardInfo("#msg-result");
+    check("Elder warning (HIGH): a different scam gets its own plain explanation, not the OTP one", c8 && ["warning", "stop"].includes(c8.tier) && c8.found.length > 0 && c8.found !== ET.en.topics.secret.found && c8.steps.length >= 1 && c8.steps.length <= 2, c8 && c8.found.slice(0, 50));
+    await msgCard("Hi, are we meeting for lunch tomorrow?");
+    let n8 = await noteInfo("#msg-result");
+    check("Elder (LOW): only a small note, one plain sentence about checking for yourself, and never 'safe'", n8 && n8.tier === "info" && !n8.hasCard && /check for yourself with the real bank or company/.test(n8.extra) && /not a guarantee/.test(n8.text) && !/\bsafe\b/i.test(n8.text));
+    await dash.click("#msg-clear");
+    await dash.evaluate(() => { document.getElementById("shot-text-wrap").hidden = false; });
+    await dash.fill("#shot-text", "|||| ~~~ ..");
+    await dash.click("#shot-recheck");
+    await sleep(500);
+    n8 = await noteInfo("#shot-result");
+    check("Elder (INCONCLUSIVE): says it could not check, never calls it safe, and offers the trust guide", n8 && n8.tier === "uncertain" && /could not confidently check this/.test(n8.text) && /does not mean it is safe/.test(n8.text) && /ask someone you trust/.test(n8.extra) && n8.trust === true && !/\bsafe\b/i.test(n8.extra));
+    await dash.fill("#link-input", "https://sbi-kyc-update.xyz/login");
+    await dash.click("#link-form button[type=submit]");
+    await sleep(400);
+    c8 = await elderCardInfo("#link-result");
+    check("Elder explanation (look-alike website): 'pretending to be your bank' and 'do not enter your bank details until you check the official website'", c8 && /may be pretending to be your bank/.test(c8.found) && c8.steps[0] === "Do not enter your bank details until you check the official website.", c8 && c8.found.slice(0, 50));
+    await dash.fill("#upi-id", "shop@okhdfcbnk");
+    await dash.fill("#upi-amount", "100");
+    await dash.click("#upi-analyze");
+    await sleep(500);
+    c8 = await elderCardInfo("#upi-result");
+    check("Elder explanation (UPI): 'Check who will receive your money before paying.'", c8 && c8.found === "Check who will receive your money before paying." && c8.steps.length === 2 && c8.liCount === 4, c8 && c8.found);
+    await dash.click("#upi-clear");
+    await dash.fill("#shot-text", "Please send Rs 5000 to this UPI id abc123@ybl immediately.");
+    await dash.click("#shot-recheck");
+    await sleep(500);
+    c8 = await elderCardInfo("#shot-result");
+    check("Elder explanation (screenshot): the plain 'asks for a payment' explanation", c8 && /asks for a payment/.test(c8.found) && c8.steps.length >= 1, c8 && c8.found.slice(0, 50));
+    await dash.fill("#shot-text", "");
+
+    // -- the family guide (information only)
+    await dash.evaluate(() => self.Prevenza.holdyCard.reset());
+    await msgCard(OTP_MSG);
+    const storageBefore = JSON.stringify(await sw.evaluate(() => chrome.storage.local.get(null)));
+    const requestsBefore = dashRequests.length;
+    c8 = await elderCardInfo("#msg-result");
+    check("Family guide: the warning offers 'Ask someone you trust' as a large button", c8.trust === ET.en.labels.trust && (await dash.$$eval("#msg-result .holdy .family-panel", (p) => p.length)) === 0);
+    await dash.click("#msg-result .holdy .btn-trust");
+    const fam = await dash.evaluate(() => {
+      const p = document.querySelector("#msg-result .holdy .family-panel");
+      const b = document.querySelector("#msg-result .holdy .btn-trust");
+      return p ? { text: p.textContent, fields: p.querySelectorAll("input,textarea,select,a,form,[href],[contenteditable]").length, buttons: p.querySelectorAll("button").length, focused: document.activeElement === p, expanded: b.getAttribute("aria-expanded"), controls: b.getAttribute("aria-controls") === p.id, items: p.querySelectorAll('[role="listitem"]').length } : null;
+    });
+    check("Family guide: opens with the three trust steps, word for word", fam && fam.text.includes("Before sending money, call someone you trust using a number you already know.") && fam.text.includes("Do not use phone numbers provided in suspicious messages.") && fam.text.includes("Verify bank-related requests using your bank's official contact details."), fam && fam.items + " points");
+    check("Family guide: it is information only (no box to type in, no link, no phone number, one close button)", fam && fam.fields === 0 && fam.buttons === 1 && !/\d{4,}/.test(fam.text) && /does not contact anyone for you/.test(fam.text) && /does not save phone numbers or send messages/.test(fam.text));
+    check("Family guide: keyboard friendly (focus moves to it, state and control are announced)", fam && fam.focused && fam.expanded === "true" && fam.controls);
+    await dash.screenshot({ path: path.join(SHOTS, "21-elder-family-guide.png") });
+    await dash.click("#msg-result .holdy .family-panel button");
+    check("Family guide: closing returns focus to its button and removes the panel", (await dash.$("#msg-result .holdy .family-panel")) === null && (await dash.evaluate(() => document.activeElement.classList.contains("btn-trust"))) === true && (await dash.getAttribute("#msg-result .holdy .btn-trust", "aria-expanded")) === "false");
+    await dash.click("#trust-slot .btn-trust");
+    check("Family guide (dashboard card): opens the same guide", (await dash.isVisible("#trust-slot .family-panel")) && /Verify bank-related requests/.test(await dash.textContent("#trust-slot .family-panel")));
+    await dash.click("#trust-slot .family-panel button");
+    check("Family guide: opening and closing stores nothing and sends nothing", JSON.stringify(await sw.evaluate(() => chrome.storage.local.get(null))) === storageBefore && dashRequests.slice(requestsBefore).length === 0, dashRequests.slice(requestsBefore).length + " requests");
+
+    // -- responsive: a phone-sized screen with the guide open
+    await dash.setViewportSize({ width: 360, height: 800 });
+    await dash.click("#msg-result .holdy .btn-trust");
+    await sleep(300);
+    const wide8 = await dash.evaluate(() => {
+      const out = [document.documentElement.scrollWidth + "/" + document.documentElement.clientWidth];
+      for (const e of document.querySelectorAll("body *")) { const r = e.getBoundingClientRect(); if (r.width > 0 && r.right > document.documentElement.clientWidth + 1) out.push((e.id || e.className || e.tagName) + ":" + Math.round(r.right)); }
+      return out.slice(0, 6).join(" ");
+    });
+    check("Elder layout fits a 360px phone screen with the warning and the guide open (no sideways scrolling, measured against the visible width)", (await dash.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)) === false, wide8);
+    check("Elder layout on a phone: every button is still at least 56px tall", (await visibleHeights(dash, "#msg-result .holdy button")).every((h) => h >= 56), (await visibleHeights(dash, "#msg-result .holdy button")).join(","));
+    await dash.screenshot({ path: path.join(SHOTS, "22-elder-warning-mobile.png"), fullPage: false });
+    await dash.setViewportSize({ width: 1100, height: 900 });
+    await dash.evaluate(() => self.Prevenza.holdyCard.reset());
+
+    // -- languages: English, Hindi and Tamil are real; the interface is only partly translated, and the app says so
+    await settings.reload();
+    await settings.waitForSelector("#elderMode", { state: "attached" });
+    await settings.selectOption("#language", "hi");
+    await sleep(600);
+    check("Language (Hindi): chosen in settings, saved, and the labelled settings text changes at once", (await storedSettings()).language === "hi" && (await settings.getAttribute("html", "lang")) === "hi" && (await settings.textContent('[data-i18n="set_elder"]')) === I18N.TABLE.hi.set_elder && (await settings.textContent('[data-i18n="set_language_help"]')) === I18N.TABLE.hi.set_language_help);
+    check("Language: the language row stays readable in all three scripts, so nobody gets stuck", /Language \/ .*\u092D\u093E\u0937\u093E \/ .*\u0BAE\u0BCA\u0BB4\u0BBF/.test(await settings.textContent('label[for="language"]')));
+    await reloadDash();
+    check("Language (Hindi): dashboard headings and buttons are translated", (await dash.textContent("#hero-h")) === I18N.TABLE.hi.dash_hero && (await dash.textContent("#link-h")) === I18N.TABLE.hi.dash_link && (await dash.textContent("#msg-analyze")) === I18N.TABLE.hi.btn_analyze_message && (await dash.textContent("#trust-h")) === I18N.TABLE.hi.trust_title);
+    check("Language: the app is honest that the rest stays English (no claim of a full translation)", /Prevenza is on/.test(await dash.textContent("#hero-sub")) && (await dash.$$eval("#road li", (l) => l.some((x) => /Whole interface in Hindi and Tamil/.test(x.textContent) && /Planned/.test(x.textContent)))));
+    await msgCard(OTP_MSG);
+    c8 = await elderCardInfo("#msg-result");
+    check("Language (Hindi): the Elder warning, its labels, steps and trust button are in Hindi", c8 && /[\u0900-\u097f]/.test(c8.found) && c8.found === ET.hi.topics.secret.found && c8.labels.join("|") === [ET.hi.labels.found, ET.hi.labels.why, ET.hi.labels.todo].join("|") && c8.trust === ET.hi.labels.trust && c8.steps.join("|") === ET.hi.topics.secret.steps.join("|"));
+    check("Language (Hindi): the risk label is translated and still has its shape", /[\u0900-\u097f]/.test(await dash.textContent("#msg-result .pill")) && (await dash.$("#msg-result .pill-danger, #msg-result .pill-critical")) !== null);
+    await dash.click("#msg-result .holdy .btn-trust");
+    check("Language (Hindi): the family guide is in Hindi", /[\u0900-\u097f]/.test(await dash.textContent("#msg-result .family-panel")) && (await dash.textContent("#msg-result .family-panel")).includes(ET.hi.family.points[0]));
+    const levelHi = /Warning level (\d+) of 100/.exec(await dash.textContent("#msg-result"));
+    const hinglishText = await checkMessage("Sir aapka OTP bata do, abhi turant.", "hinglish");
+    check("Language: Hinglish is a message-checking language only, and it still works while the interface is in Hindi", /Language: Hinglish/.test(hinglishText) && /OTP, PIN or password request/.test(hinglishText));
+    await settings.selectOption("#language", "ta");
+    await sleep(600);
+    await reloadDash();
+    await msgCard(OTP_MSG);
+    c8 = await elderCardInfo("#msg-result");
+    check("Language (Tamil): headings, the Elder warning and the trust button are in Tamil", (await dash.textContent("#hero-h")) === I18N.TABLE.ta.dash_hero && c8 && c8.found === ET.ta.topics.secret.found && c8.trust === ET.ta.labels.trust && /[\u0b80-\u0bff]/.test(await dash.textContent("#msg-result .pill")));
+    const levelTa = /Warning level (\d+) of 100/.exec(await dash.textContent("#msg-result"));
+    check("Language: changing the interface language does not change how a message is analysed (same warning level)", levelHi && levelTa && levelHi[1] === levelTa[1], (levelHi && levelHi[1]) + " / " + (levelTa && levelTa[1]));
+    await settings.selectOption("#language", "en");
+    await sleep(600);
+    await reloadDash();
+    await msgCard(OTP_MSG);
+    c8 = await elderCardInfo("#msg-result");
+    const levelEn = /Warning level (\d+) of 100/.exec(await dash.textContent("#msg-result"));
+    check("Language (English): everything is back, exactly as written", (await dash.textContent("#hero-h")) === I18N.TABLE.en.dash_hero && (await dash.textContent("#msg-analyze")) === I18N.TABLE.en.btn_analyze_message && c8.found === ET.en.topics.secret.found && levelEn && levelEn[1] === levelHi[1]);
+    check("Language: the settings language list offers only the three languages that are really translated", (await settings.$$eval("#language option", (o) => o.map((x) => x.value).join(","))) === "en,hi,ta");
+
+    // -- normal mode is untouched
+    await settings.click("#elderMode", { force: true });
+    await sleep(600);
+    await reloadDash();
+    await dash.evaluate(() => self.Prevenza.holdyCard.reset());
+    await msgCard(OTP_MSG);
+    const normal8 = await dash.evaluate(() => {
+      const box = document.querySelector("#msg-result .holdy");
+      return { attr: document.documentElement.getAttribute("data-elder"), font: parseFloat(getComputedStyle(document.documentElement).fontSize), elderPanel: !!box.querySelector(".holdy-elder"), more: !!box.querySelector("details"), trustInCard: !!box.querySelector(".btn-trust"), simple: box.querySelectorAll(".holdy-simple p").length, li: box.querySelectorAll("li").length, guideShown: getComputedStyle(document.querySelector("#trust-guide")).display !== "none", moreShown: getComputedStyle(document.querySelector("#more-tools")).display !== "none" };
+    });
+    check("Normal mode (Elder Mode off): the Step 7 card is unchanged (no Elder panel, no extra section, five steps)", normal8.attr === "false" && normal8.font === 16 && !normal8.elderPanel && !normal8.more && !normal8.trustInCard && normal8.li === 5 && normal8.simple >= 1, JSON.stringify(normal8));
+    check("Normal mode: the Elder-only guide card and heading are not shown", !normal8.guideShown && !normal8.moreShown);
+    check("Normal mode: the dashboard keeps its normal order (stats, tools, then the checkers)", await dash.evaluate(() => document.querySelector(".stats").getBoundingClientRect().top < document.querySelector("#link-check").getBoundingClientRect().top));
+    const popupNormal = await ctx.newPage();
+    watch(popupNormal, "popup (normal)");
+    popupNormal.on("request", (r) => step8Requests.push(r.url()));
+    await popupNormal.goto(URL_POPUP);
+    await popupNormal.waitForSelector("#protection-sub");
+    await sleep(500);
+    check("Normal mode (popup): no Elder button and the normal size", !(await popupNormal.isVisible("#open-trust")) && (await px(popupNormal, "html", "fontSize")) === 16);
+    await popupNormal.close();
+    await dash.click("#msg-clear");
+    await dash.evaluate(() => self.Prevenza.holdyCard.reset());
+    // Turn Elder Mode back on, so the reset check below still proves that "Restore default settings" turns it off.
+    await settings.click("#elderMode", { force: true });
+    await sleep(600);
+
+    // -- Elder Mode never stores what was checked, and never asks for or keeps contact details
+    const e8Stored = JSON.stringify(await sw.evaluate(() => chrome.storage.local.get(null)));
+    check("Elder Mode stores only settings, counters and the schema number (no scans, no contacts, no dismissals)", Object.keys(JSON.parse(e8Stored)).every((k) => ["prevenza.schema", "prevenza.settings", "prevenza.stats"].includes(k)) && !/sbi-kyc|otp|lucky|upi|shop@|\+91|family|contact|phone|trusted/i.test(e8Stored.replace(/"showAssistantBadge"|"sensitivity"/g, "")), Object.keys(JSON.parse(e8Stored)).join(", "));
+    check("Elder Mode: the only settings keys are the existing ones (no new data was introduced)", Object.keys(await storedSettings()).sort().join(",") === "elderMode,enabled,language,mutedSites,sensitivity,showAssistantBadge");
+    check("Elder Mode: no page asks for a phone number or contact (no tel, email or contact fields anywhere in the guide or settings)", (await dash.$$eval("input[type=tel], input[type=email], input[name*=phone i], input[name*=contact i]", (n) => n.length)) === 0 && (await settings.$$eval("input[type=tel], input[type=email], input[name*=phone i], input[name*=contact i]", (n) => n.length)) === 0);
+    check("Elder Mode: the new pages made no network requests", step8Requests.every((u) => u.startsWith("chrome-extension://") || u.startsWith("data:")), step8Requests.length + " local requests");
+
     // ---- 7. reset buttons
     await settings.click("#reset-stats");
     await settings.click("#reset-stats");
@@ -789,10 +1077,41 @@ const server = http
     // The CSP probe above deliberately provokes two console messages about example.com. Ignore only those.
     const real = errors.filter((e) => !/Receiving end does not exist|Could not establish connection/i.test(e) && !/example\.com/i.test(e));
     check("no JavaScript errors in the worker, popup, settings, dashboard or website", real.length === 0, real.slice(0, 3).join(" ; "));
+    // ---- 10. Step 8: Elder Mode and the language survive closing and reopening the whole browser
+    await settings.reload();
+    await settings.waitForSelector("#elderMode", { state: "attached" });
+    if (!(await settings.isChecked("#elderMode"))) await settings.click("#elderMode", { force: true });
+    await settings.selectOption("#language", "ta");
+    await sleep(800);
+    await ctx.close();
+    const ctx2 = await chromium.launchPersistentContext(userData, {
+      headless: false,
+      viewport: { width: 1100, height: 800 },
+      args: [`--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`, "--no-first-run"],
+    });
+    try {
+      const sw2 = ctx2.serviceWorkers()[0] || (await ctx2.waitForEvent("serviceworker", { timeout: 15000 }));
+      const again = new URL(sw2.url()).host === id;
+      const kept = (await sw2.evaluate(() => chrome.storage.local.get("prevenza.settings")))["prevenza.settings"];
+      check("after closing and reopening the whole browser, the extension is the same and the settings are still stored", again && kept.elderMode === true && kept.language === "ta", JSON.stringify({ elderMode: kept.elderMode, language: kept.language }));
+      const p2 = await ctx2.newPage();
+      await p2.goto(URL_SETTINGS);
+      await p2.waitForSelector("#elderMode", { state: "attached" });
+      await sleep(600);
+      check("after reopening the browser: settings shows Elder Mode on, large text, and Tamil", (await p2.isChecked("#elderMode")) === true && (await p2.getAttribute("html", "data-elder")) === "true" && (await p2.getAttribute("html", "lang")) === "ta" && (await px(p2, "html", "fontSize")) >= 22 && (await p2.inputValue("#language")) === "ta");
+      await p2.goto(URL_DASH);
+      await p2.waitForSelector("#legend li");
+      await sleep(600);
+      check("after reopening the browser: the dashboard is in Elder layout with Tamil headings", (await p2.getAttribute("html", "data-elder")) === "true" && (await p2.textContent("#hero-h")) === I18N.TABLE.ta.dash_hero && (await p2.isVisible("#trust-guide")));
+      const persisted = JSON.stringify(await sw2.evaluate(() => chrome.storage.local.get(null)));
+      check("after reopening the browser: still only settings, counters and the schema number are stored", Object.keys(JSON.parse(persisted)).every((k) => ["prevenza.schema", "prevenza.settings", "prevenza.stats"].includes(k)));
+    } finally {
+      await ctx2.close();
+    }
   } catch (e) {
     check("test run finished without crashing", false, String(e && e.stack ? e.stack : e).slice(0, 400));
   } finally {
-    await ctx.close();
+    await ctx.close().catch(() => {});
     server.close();
   }
 

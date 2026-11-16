@@ -5,7 +5,8 @@
  * what Prevy should say. It never scores anything: the tier comes straight from the engine's category.
  *   context:  "url" | "message" | "upi" | "screenshot"   (what the user checked)
  *   language: "en" | "hi" | "ta"                         (falls back to English)
- *   elder:    true shows one simple explanation and one sign instead of three
+ *   elder:    true shows one simple explanation and one sign instead of three, and (Step 8) adds model.elder: the plain
+ *             "what we found / why it can be dangerous / what to do now" text from elder-text.js. Without elder it is null.
  *
  * Every headline and explanation is picked from the evidence ids the engine returned. Nothing is said about a kind of
  * risk unless matching evidence exists. The model holds rule wording only, never the text, address or payment checked.
@@ -13,13 +14,14 @@
 (function (root, factory) {
   const isNode = typeof module === "object" && module.exports;
   const text = isNode ? require("./holdy-text.js") : root.Prevenza.holdyText;
-  const api = factory(text);
+  const elderText = isNode ? require("./elder-text.js") : root.Prevenza.elderText;
+  const api = factory(text, elderText);
   if (isNode) module.exports = api;
   else {
     root.Prevenza = root.Prevenza || {};
     root.Prevenza.holdy = api;
   }
-})(typeof self !== "undefined" ? self : this, function (T) {
+})(typeof self !== "undefined" ? self : this, function (T, E) {
   "use strict";
 
   const CONTEXTS = ["url", "message", "upi", "screenshot"];
@@ -100,6 +102,46 @@
     return keys.slice(0, max).map((k) => say(language, k));
   }
 
+  // Elder Mode (Step 8): each headline belongs to one plain-language topic in elder-text.js.
+  const TOPIC_OF_HEADLINE = {
+    h_otp: "secret", h_otp_message: "secret", h_otp_screenshot: "secret", h_otp_upi: "secret",
+    h_receive: "receive", h_safe: "safe_account", h_arrest: "arrest", h_release: "release_goods", h_fee: "fee",
+    h_screenshot_pay: "screenshot_pay",
+    h_default_message: "message", h_default_upi: "upi", h_default_screenshot: "screenshot",
+  };
+  const LOOKALIKE_ID = SIMPLE[0][0];
+
+  // A few headlines are broad. The evidence decides which plain explanation fits best.
+  const REFINE_FEE = [[/kyc|parcel/, "fee"], [/customer_care|remote_access/, "helpline"]];
+  const REFINE_DEFAULT = [[/advance_fee|prize/, "receive"], [/money_request|payment_instruction|emergency|wrong_transfer/, "money_request"]];
+  function refine(rules, evidence, fallback) {
+    for (const [re, topic] of rules) if (evidence.some((e) => re.test(e.id))) return topic;
+    return fallback;
+  }
+
+  function elderTopic(headlineKey, evidence) {
+    if (headlineKey === "h_url" || headlineKey === "h_default_url") {
+      const fake = evidence.some((e) => (e.seenIn || [e.module]).includes("url") && LOOKALIKE_ID.test(e.id));
+      return fake ? "site_fake" : "site_odd";
+    }
+    if (headlineKey === "h_fee") return refine(REFINE_FEE, evidence, "fee");
+    if (headlineKey === "h_default_message") return refine(REFINE_DEFAULT, evidence, "message");
+    return TOPIC_OF_HEADLINE[headlineKey] || "message";
+  }
+
+  /** The plain explanation for a warning card: what was found, why it can hurt, and one or two next steps. */
+  function elderCard(language, topic) {
+    const set = E[language] || E.en;
+    const t = set.topics[topic] || E.en.topics[topic] || E.en.topics.message;
+    return { topic, found: t.found, why: t.why, steps: t.steps.slice(0, 2), labels: set.labels, family: set.family };
+  }
+
+  /** The extra line for the small notes (LOW and INCONCLUSIVE). It never says the result is safe. */
+  function elderNote(language, tier) {
+    const set = E[language] || E.en;
+    return { extra: tier === "uncertain" ? set.labels.noteUnsure : set.labels.noteLow, trust: tier === "uncertain", labels: set.labels, family: set.family };
+  }
+
   function actionsFor(context, language) {
     if (context === "upi") return ["a_review_upi", "a_cancel_upi", "a_family_upi", "a_continue_upi"].map((k) => say(language, k));
     return ["a_review", "a_cancel_" + context, "a_verify", "a_family", "a_continue"].map((k) => say(language, k));
@@ -125,16 +167,18 @@
     const evidence = positiveEvidence(assessment);
     const common = Object.assign(base, { tier, category, levelLabel: LEVEL_LABEL[category], tierLabel: say(language, "tier_" + tier), key: keyOf(assessment, context, evidence) });
 
-    if (tier === "info") return Object.assign(common, { show: "note", note: say(language, "note_low") });
-    if (tier === "uncertain") return Object.assign(common, { show: "note", note: say(language, "note_uncertain") });
+    if (tier === "info") return Object.assign(common, { show: "note", note: say(language, "note_low"), elder: elder ? elderNote(language, tier) : null });
+    if (tier === "uncertain") return Object.assign(common, { show: "note", note: say(language, "note_uncertain"), elder: elder ? elderNote(language, tier) : null });
 
     const leadKey = tier === "stop" ? (context === "upi" ? "lead_stop_upi" : "lead_stop") : "lead_hold";
     const signs = evidence.slice().sort((a, b) => (b.strength === "critical" ? 1 : 0) - (a.strength === "critical" ? 1 : 0) || b.points - a.points);
+    const headlineKey = pickHeadline(evidence, context);
     return Object.assign(common, {
       show: "card",
       urgent: tier === "warning" || tier === "stop",
       lead: say(language, leadKey),
-      headline: say(language, pickHeadline(evidence, context)),
+      headline: say(language, headlineKey),
+      elder: elder ? elderCard(language, elderTopic(headlineKey, evidence)) : null,
       simple: simpleLines(signs, language, elder ? 1 : 3),
       signs: signs.slice(0, elder ? 1 : 3).map((e) => ({ label: e.label, strength: e.strength, source: e.moduleLabel })),
       actions: actionsFor(context, language),
@@ -153,5 +197,5 @@
     });
   }
 
-  return { build, say, CONTEXTS, TIER_OF, HEADLINES, SIMPLE };
+  return { build, say, elderTopic, CONTEXTS, TIER_OF, HEADLINES, SIMPLE };
 });

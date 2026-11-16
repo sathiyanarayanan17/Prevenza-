@@ -23,7 +23,7 @@
     <section class="card" aria-labelledby="protection-h">
       <div class="row first">
         <div class="row-text">
-          <h2 id="protection-h">Protection</h2>
+          <h2 id="protection-h" data-i18n="popup_protection">Protection</h2>
           <p class="muted small" id="protection-sub">Loading...</p>
         </div>
         <label class="switch">
@@ -34,7 +34,7 @@
     </section>
 
     <section class="card" aria-labelledby="page-h">
-      <h2 id="page-h">This page</h2>
+      <h2 id="page-h" data-i18n="popup_page">This page</h2>
       <p class="site" id="site" aria-live="polite">Checking...</p>
       <div class="pill-line">
         <span class="pill pill-unknown" id="risk-pill">Not scanned yet</span>
@@ -48,17 +48,18 @@
     </section>
 
     <section class="btn-row actions" aria-label="Actions">
-      <button class="btn btn-primary" id="open-dashboard" type="button">Dashboard</button>
-      <button class="btn" id="open-message-check" type="button">Check a message</button>
-      <button class="btn" id="open-settings" type="button">Settings</button>
-      <button class="btn" id="preview" type="button">Say hi to Prevy</button>
+      <button class="btn btn-primary" id="open-dashboard" type="button" data-i18n="popup_dashboard">Dashboard</button>
+      <button class="btn" id="open-message-check" type="button" data-i18n="popup_message">Check a message</button>
+      <button class="btn" id="open-settings" type="button" data-i18n="popup_settings">Settings</button>
+      <button class="btn" id="preview" type="button" data-i18n="popup_hello">Say hi to Prevy</button>
+      <button class="btn btn-trust elder-only" id="open-trust" type="button" data-i18n="trust_title">Ask someone you trust</button>
     </section>
     <p class="muted small status" id="status" role="status" aria-live="polite"></p>
   </main>
 
   <footer class="foot">
     <span class="lock" aria-hidden="true">&#128274;</span>
-    <span class="muted small">Everything stays on your device. Nothing is sent anywhere.</span>
+    <span class="muted small" data-i18n="popup_footer">Everything stays on your device. Nothing is sent anywhere.</span>
   </footer>
 
   <script src="../shared/constants.js"></script>
@@ -69,6 +70,9 @@
   <script src="../shared/messaging.js"></script>
   <script src="../shared/ui.js"></script>
   <script src="../shared/holdy-text.js"></script>
+  <script src="../shared/elder-text.js"></script>
+  <script src="../shared/i18n.js"></script>
+  <script src="../shared/family-guide.js"></script>
   <script src="../shared/holdy.js"></script>
   <script src="../shared/holdy-card.js"></script>
   <script src="popup.js"></script>

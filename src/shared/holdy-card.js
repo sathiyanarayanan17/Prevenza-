@@ -53,6 +53,9 @@
     box.setAttribute("data-tier", model.tier);
     box.setAttribute("role", "status");
     box.append(mascot(28), tierTag(model), el("span", "small", text));
+    // Elder Mode adds one plain sentence ("check for yourself first") and, when the result is uncertain, the family guide.
+    if (model.elder && model.elder.extra) box.appendChild(el("span", "small holdy-extra", model.elder.extra));
+    if (model.elder && model.elder.trust && H.familyGuide) box.appendChild(H.familyGuide.create(model.elder.family));
     if (extraButton) box.appendChild(extraButton);
     return box;
   }
@@ -74,6 +77,26 @@
     return undefined;
   }
 
+  /** Elder Mode: what we found, why it can be dangerous, and one or two next steps, then the family guide. No <li> here. */
+  function elderPanel(model) {
+    const e = model.elder;
+    const panel = el("div", "holdy-elder");
+    panel.appendChild(el("p", "holdy-label", e.labels.found));
+    panel.appendChild(el("p", "holdy-found", e.found));
+    panel.appendChild(el("p", "holdy-label", e.labels.why));
+    panel.appendChild(el("p", "holdy-why", e.why));
+    panel.appendChild(el("p", "holdy-label", e.labels.todo));
+    const todo = el("div", "holdy-do");
+    e.steps.forEach((s, i) => {
+      const p = el("p", "holdy-step");
+      p.append(el("span", "holdy-step-no", String(i + 1)), el("span", null, s));
+      todo.appendChild(p);
+    });
+    panel.appendChild(todo);
+    if (H.familyGuide) panel.appendChild(H.familyGuide.create(e.family));
+    return panel;
+  }
+
   function card(model, opts, rerender, compact) {
     const box = el("section", "holdy");
     const hid = "holdy-h-" + ++idCounter;
@@ -83,6 +106,7 @@
     // Announce HIGH and CRITICAL once, when they first appear. Repeats and lower levels are polite.
     box.setAttribute("role", model.urgent && !compact ? "alert" : "status");
     if (compact) box.setAttribute("data-repeat", "true");
+    if (model.elder) box.setAttribute("data-elder", "true");
 
     const head = el("div", "holdy-head");
     const h = el("h3", null, model.lead + " " + model.headline);
@@ -95,6 +119,8 @@
       rerender();
     });
 
+    if (model.elder) box.appendChild(elderPanel(model));
+
     if (compact) {
       // A short card: for a repeat of the same result, or for small spaces such as the popup.
       box.appendChild(el("p", "muted small", compact === "repeat" ? model.labels.repeat : model.simple[0] || model.disclaimer));
@@ -104,15 +130,22 @@
       return box;
     }
 
+    // In Elder Mode the technical detail sits in a section that is open by default and can be closed.
+    const detail = model.elder ? el("details", "holdy-more") : box;
+    if (model.elder) {
+      detail.open = true;
+      detail.appendChild(el("summary", null, model.elder.labels.more));
+      box.appendChild(detail);
+    }
     if (model.simple.length) {
-      box.appendChild(el("p", "holdy-label", model.labels.noticed));
-      box.appendChild(lines("holdy-simple", model.simple));
+      detail.appendChild(el("p", "holdy-label", model.labels.noticed));
+      detail.appendChild(lines("holdy-simple", model.simple));
     }
     if (model.signs.length) {
-      box.appendChild(el("p", "holdy-label", model.labels.signs));
-      box.appendChild(lines("holdy-signs muted", model.signs.map((s) => s.label + (s.source ? " (" + s.source + ")" : ""))));
+      detail.appendChild(el("p", "holdy-label", model.labels.signs));
+      detail.appendChild(lines("holdy-signs muted", model.signs.map((s) => s.label + (s.source ? " (" + s.source + ")" : ""))));
     }
-    box.appendChild(el("p", "holdy-label", model.labels.todo));
+    detail.appendChild(el("p", "holdy-label", model.labels.todo));
     const ul = el("ul");
     model.actions.forEach((text, i) => {
       const li = el("li");
@@ -120,9 +153,9 @@
       else li.textContent = text;
       ul.appendChild(li);
     });
-    box.appendChild(ul);
-    box.appendChild(el("p", "muted small", model.disclaimer));
-    if (model.partial) box.appendChild(el("p", "muted small", model.labels.partial));
+    detail.appendChild(ul);
+    detail.appendChild(el("p", "muted small", model.disclaimer));
+    if (model.partial) detail.appendChild(el("p", "muted small", model.labels.partial));
     const row = el("div", "btn-row");
     row.appendChild(dismiss);
     box.appendChild(row);

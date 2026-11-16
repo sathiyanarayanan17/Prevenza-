@@ -50,9 +50,19 @@
     });
   }
 
+  // The "Ask someone you trust" guide (Elder Mode). Information only. Built again only when the language changes,
+  // so an open guide stays open when the system check refreshes the page.
+  let trustLanguage = null;
+  function renderTrust(language) {
+    if (trustLanguage === language || !H.familyGuide) return;
+    trustLanguage = language;
+    H.familyGuide.render($("trust-slot"), language, { noTitle: true, open: location.hash === "#trust-guide" });
+  }
+
   function renderState(state) {
     const { settings, stats } = state;
     H.ui.applyPrefs(settings);
+    renderTrust(settings.language);
     $("stat-protection").textContent = settings.enabled ? "On" : "Off";
     $("stat-pages").textContent = String(stats.pagesSeen);
     $("stat-warnings").textContent = String(stats.warningsShown);
