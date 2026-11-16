@@ -232,6 +232,11 @@
     if (typeof a.score === "number") out.appendChild(node("p", "muted small", a.scoreMeaning));
 
     if (r.quality.message) out.appendChild(node("p", r.quality.level === "none" || r.quality.level === "poor" ? "problem" : "muted small", r.quality.message));
+    // Prevy's card or note (Step 7). For an unreadable image it explains that nothing could be decided.
+    const holdySlot = node("div", "holdy-slot");
+    out.appendChild(holdySlot);
+    let whyHeading = null;
+    H.holdyCard.render(holdySlot, a, { context: "screenshot", reviewTarget: () => whyHeading || el.text });
     if (!r.readable || a.score === null) {
       out.appendChild(node("p", "muted", a.recommendedAction));
       out.appendChild(node("p", "muted small", "Nothing was marked safe. Try another image, or type the words from the screenshot into \"Check a message\" above."));
@@ -264,7 +269,8 @@
       }
     }
 
-    out.appendChild(node("h3", null, "Why this result"));
+    whyHeading = node("h3", null, "Why this result");
+    out.appendChild(whyHeading);
     if (a.reasons.length === 0) {
       out.appendChild(node("p", "muted", "No strong warning signs were found in the text that was read. " + a.confidence.note));
     } else {

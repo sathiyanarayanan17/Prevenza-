@@ -160,6 +160,28 @@ textarea:focus { border-color: var(--blue); }
 details.why { margin-top: 8px; }
 details.why summary { cursor: pointer; font-weight: 600; min-height: 32px; }
 
+/* Prevy's warning: a bordered box with a left bar, a heading that starts with words, and a list of steps */
+.holdy { display: grid; gap: 8px; padding: 14px; border: 1px solid var(--line); border-left: 6px solid var(--warn); border-radius: 12px; background: var(--bg); }
+.holdy[data-level="HIGH"] { border-left-color: var(--danger); }
+.holdy[data-level="CRITICAL"] { border-left-color: var(--danger); border-left-style: double; border-left-width: 9px; }
+.holdy-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.holdy-head h3 { font-size: 1.1rem; flex: 1 1 12rem; min-width: 0; overflow-wrap: anywhere; }
+.holdy, .holdy-note { min-width: 0; overflow-wrap: anywhere; }
+.holdy ul { margin: 0; padding-left: 1.2rem; display: grid; gap: 4px; }
+/* Prevy's intervention card and notes (Step 7). Level is shown by a word and an icon, never by colour alone. */
+.holdy-note { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 12px; border: 1px dashed var(--line); border-radius: 10px; background: var(--bg); }
+.holdy-note[data-tier="uncertain"] { border-style: dotted; border-width: 2px; }
+.holdy-tier { display: inline-flex; align-items: center; gap: 6px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); }
+.holdy-icon { display: inline-grid; place-items: center; min-width: 1.3em; height: 1.3em; border: 1px solid currentColor; border-radius: 4px; font-size: 0.7rem; }
+.holdy-tier[data-tier="caution"] { color: #fcd34d; }
+.holdy-tier[data-tier="warning"], .holdy-tier[data-tier="stop"] { color: #fca5a5; }
+.holdy-tier[data-tier="stop"] .holdy-icon { border-radius: 50%; border-width: 2px; }
+.holdy-label { font-weight: 600; margin-top: 4px; }
+.holdy-simple, .holdy-signs { display: grid; gap: 2px; }
+.holdy-simple p::before, .holdy-signs p::before { content: "\2022  "; }
+.holdy .btn-row { margin-top: 6px; }
+.holdy[data-repeat="true"] { border-left-style: dashed; }
+
 /* toast */
 .toast { position: fixed; left: 50%; bottom: 18px; transform: translate(-50%, 20px); background: var(--surface-2); color: var(--text); border: 1px solid var(--blue); padding: 10px 16px; border-radius: 10px; opacity: 0; pointer-events: none; transition: opacity 0.15s, transform 0.15s; z-index: 50; }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }

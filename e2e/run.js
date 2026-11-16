@@ -554,6 +554,140 @@ const server = http
     check("screenshot checker: reading produced no errors other than the engine's own harmless notices", ocrErrors.every((e) => /Warning: Parameter not found/.test(e)), ocrErrors.filter((e) => !/Warning: Parameter not found/.test(e)).slice(0, 2).map((e) => e.slice(0, 120)).join(" ; "));
     check("screenshot checker: reading made no network request at all (the engine and language data are bundled)", dashRequests.filter((u) => !u.startsWith("chrome-extension://") && !u.startsWith("data:")).length === externalBefore);
 
+    // ---- 6f. Step 7: Prevy's intervention card across every checker (new checks, added after the Step 1 to 6 checks)
+    const msgCard = async (text) => {
+      await dash.selectOption("#msg-language", "auto");
+      await dash.fill("#msg-input", text);
+      await dash.click("#msg-analyze");
+      await sleep(500);
+    };
+    const cardInfo = (sel) => dash.evaluate((s) => {
+      const box = document.querySelector(s + " .holdy");
+      const note = document.querySelector(s + " .holdy-note");
+      return box
+        ? { kind: "card", tier: box.dataset.tier, role: box.getAttribute("role"), repeat: box.dataset.repeat === "true", h3: box.querySelector("h3").textContent, tierLabel: box.querySelector(".holdy-tier").textContent, simple: box.querySelectorAll(".holdy-simple p").length, signs: box.querySelectorAll(".holdy-signs p").length, actions: box.querySelectorAll("li").length, firstIsButton: !!box.querySelector("li:first-child button"), text: box.textContent, labelled: !!document.getElementById(box.getAttribute("aria-labelledby")) }
+        : note ? { kind: "note", tier: note.dataset.tier, text: note.textContent } : { kind: "none" };
+    }, sel);
+    await dash.evaluate(() => self.Prevenza.holdyCard.reset());
+
+    await msgCard("Dear customer, your SBI KYC is pending. Share your OTP immediately or your account will be blocked.");
+    let card = await cardInfo("#msg-result");
+    check("Prevy (message, HIGH or CRITICAL): a prominent card with the urgency-and-OTP headline", card.kind === "card" && ["warning", "stop"].includes(card.tier) && /creating urgency and asking for sensitive information\. Do not share your OTP or PIN/.test(card.h3), card.tier + " | " + (card.h3 || "").slice(0, 60));
+    check("Prevy: the level is a word and an icon, not colour alone, and the card is announced and labelled", /Warning|Stop/.test(card.tierLabel) && card.role === "alert" && card.labelled);
+    check("Prevy: the card shows the evidence and the original shield mascot", card.signs >= 1 && card.simple >= 1 && /OTP/.test(card.text) && (await dash.$("#msg-result .holdy .holdy-head svg")) !== null);
+    check("Prevy: elder mode (on in this run) shows one simple explanation and one sign", card.simple === 1 && card.signs === 1);
+    check("Prevy: the five safety steps are offered, the first is a review button, and Prevy says it cannot stop messages", card.actions === 5 && card.firstIsButton && /Ask a trusted family member/.test(card.text) && /Continue only after/.test(card.text) && /cannot see or stop messages/.test(card.text));
+    await dash.click("#msg-result .holdy li:first-child button");
+    check("Prevy: 'Review the warning signs' moves focus to the analysis, it does not act on anything", (await dash.evaluate(() => document.activeElement && document.activeElement.textContent)) === "Why this result");
+    await dash.screenshot({ path: path.join(SHOTS, "15-prevy-card.png"), fullPage: false });
+
+    // repeats and dismissing (in memory only)
+    await msgCard("Dear customer, your SBI KYC is pending. Share your OTP immediately or your account will be blocked.");
+    card = await cardInfo("#msg-result");
+    check("Prevy: the same result again shows a short card, not the full warning a second time", card.kind === "card" && card.repeat === true && /showed you this warning a moment ago/.test(card.text) && card.role === "status");
+    await dash.click("#msg-result .holdy button:has-text('Show details')");
+    card = await cardInfo("#msg-result");
+    check("Prevy: 'Show details' brings the full card back", card.kind === "card" && card.repeat === false && card.actions === 5);
+    await dash.click("#msg-result .holdy button:has-text('Dismiss')");
+    card = await cardInfo("#msg-result");
+    check("Prevy: dismissing leaves a note that the result is still High or Critical risk (never 'safe')", card.kind === "note" && /You hid Prevy's warning\. The result is still (High|Critical) risk/.test(card.text) && !/\bsafe\b/i.test(card.text) && /(High|Critical) risk/.test(await dash.textContent("#msg-result .verdict .pill")));
+    await msgCard("Dear customer, your SBI KYC is pending. Share your OTP immediately or your account will be blocked.");
+    check("Prevy: a dismissed warning stays hidden for the same result, and can be shown again", (await cardInfo("#msg-result")).kind === "note" && (await dash.$("#msg-result .holdy-note button")) !== null);
+    await dash.click("#msg-result .holdy-note button");
+    check("Prevy: 'Show the warning again' restores the full card", (await cardInfo("#msg-result")).repeat === false);
+    await msgCard("Congratulations! You have won the lucky draw jackpot of 25 lakh. Pay the processing fee to claim your prize.");
+    check("Prevy: a different result gets its own full warning", (await cardInfo("#msg-result")).repeat === false && (await cardInfo("#msg-result")).kind === "card");
+
+    // every tier
+    await msgCard("Your KYC is pending, please update it.");
+    card = await cardInfo("#msg-result");
+    check("Prevy (MEDIUM): a noticeable caution card that is not announced as an alert", card.kind === "card" && card.tier === "caution" && card.role === "status" && /Caution/.test(card.tierLabel) && /Hold on!/.test(card.h3), card.kind + " " + card.tier);
+    await msgCard("This is CBI officer. A case of money laundering is registered against your Aadhaar. You are under digital arrest. Do not tell anyone.");
+    card = await cardInfo("#msg-result");
+    check("Prevy (CRITICAL): a strong 'stop and check first' warning", card.kind === "card" && card.tier === "stop" && /^Stop and check first\./.test(card.h3) && /Stop/.test(card.tierLabel));
+    await msgCard("Hi, are we meeting for lunch tomorrow?");
+    card = await cardInfo("#msg-result");
+    check("Prevy (LOW): only a small informational note, and it does not say 'safe'", card.kind === "note" && card.tier === "info" && /not a guarantee/.test(card.text) && !/\bsafe\b/i.test(card.text) && (await dash.$("#msg-result .holdy")) === null);
+    await dash.click("#msg-clear");
+    check("Prevy: before any check there is nothing from Prevy (no analysis, no claim)", (await cardInfo("#msg-result")).kind === "none");
+    await dash.evaluate(() => { document.getElementById("shot-text-wrap").hidden = false; });
+    await dash.fill("#shot-text", "|||| ~~~ ..");
+    await dash.click("#shot-recheck");
+    await sleep(500);
+    card = await cardInfo("#shot-result");
+    check("Prevy (INCONCLUSIVE): explains it could not confidently check, and that this does not mean safe", card.kind === "note" && card.tier === "uncertain" && /could not confidently check this/.test(card.text) && /does not mean it is safe/.test(card.text));
+
+    // each kind of check gets its own wording
+    await dash.fill("#link-input", "https://sbi-kyc-update.xyz/login");
+    await dash.click("#link-form button[type=submit]");
+    await sleep(400);
+    card = await cardInfo("#link-result");
+    check("Prevy (URL): the website warning, the look-alike explanation and 'cannot block a website'", card.kind === "card" && /This website address looks suspicious\. Verify the official website before entering information\./.test(card.h3) && /looks similar to a trusted website/.test(card.text) && /cannot block a website/.test(card.text));
+    await dash.fill("#link-input", "https://example.com");
+    await dash.click("#link-form button[type=submit]");
+    await sleep(400);
+    check("Prevy (URL, LOW): an ordinary site gets only the small note", (await cardInfo("#link-result")).kind === "note");
+    await dash.fill("#upi-id", "x7qz9@newbankxyz");
+    await dash.fill("#upi-amount", "250");
+    await dash.click("#upi-analyze");
+    await sleep(500);
+    check("Prevy (UPI, LOW): an ordinary payment gets only the small note", (await cardInfo("#upi-result")).kind === "note");
+    await dash.fill("#upi-id", "shop@okhdfcbnk");
+    await dash.fill("#upi-amount", "100");
+    await dash.click("#upi-analyze");
+    await sleep(500);
+    card = await cardInfo("#upi-result");
+    check("Prevy (UPI): check the recipient before sending money, with the four payment steps", card.kind === "card" && /Check the recipient before sending money/.test(card.h3) && card.actions === 4 && /cannot stop or cancel a payment/.test(card.text), (card.h3 || "").slice(0, 60));
+    await dash.click("#upi-clear");
+    await dash.fill("#shot-text", "Please send Rs 5000 to this UPI id abc123@ybl immediately.");
+    await dash.click("#shot-recheck");
+    await sleep(500);
+    card = await cardInfo("#shot-result");
+    check("Prevy (screenshot): the suspicious-payment-instructions warning", card.kind === "card" && /This screenshot contains suspicious payment instructions\. Verify independently before taking action\./.test(card.h3) && /cannot check whether a payment really happened/.test(card.text), (card.h3 || "").slice(0, 70));
+    await dash.fill("#shot-text", "Payment done sir, screenshot attached. Please send the parcel today, I have already paid.");
+    await dash.click("#shot-recheck");
+    await sleep(500);
+    check("Prevy (screenshot): 'do not release goods based only on a payment screenshot'", /Do not release goods based only on a payment screenshot/.test((await cardInfo("#shot-result")).h3 || ""));
+    await dash.fill("#shot-text", "Hello sir. Please share your UPI PIN and OTP to receive the refund.");
+    await dash.click("#shot-recheck");
+    await sleep(500);
+    check("Prevy (screenshot): an OTP or UPI PIN request gets 'never share these details'", /Someone is asking for your OTP or UPI PIN\. Never share these details\./.test((await cardInfo("#shot-result")).h3 || ""));
+
+    // phone width, and nothing remembered in storage
+    await dash.setViewportSize({ width: 360, height: 800 });
+    await dash.evaluate(() => self.Prevenza.holdyCard.reset());
+    await msgCard("Dear customer, your SBI KYC is pending. Share your OTP immediately or your account will be blocked.");
+    const wide360 = await dash.evaluate(() => {
+      const out = [document.documentElement.scrollWidth + "/" + innerWidth + "/" + document.documentElement.clientWidth];
+      for (const e of document.querySelectorAll("body *")) { const r = e.getBoundingClientRect(); if (r.right > document.documentElement.clientWidth + 1 && r.width > 0) out.push((e.id || e.className || e.tagName) + ":" + Math.round(r.left) + "-" + Math.round(r.right)); }
+      return out.slice(0, 8).join(" ");
+    });
+    check("Prevy: the card fits a 360px phone screen without sideways scrolling", (await dash.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)) === false, wide360);
+    const prevyButtons = await dash.$$eval("#msg-result .holdy button", (b) => b.map((x) => x.getBoundingClientRect().height));
+    check("Prevy: every button on the card is at least 44px tall", prevyButtons.length >= 2 && prevyButtons.every((h) => h >= 44), prevyButtons.join(","));
+    await dash.screenshot({ path: path.join(SHOTS, "16-prevy-card-mobile.png"), fullPage: false });
+    await dash.setViewportSize({ width: 1100, height: 900 });
+    const prevyStored = JSON.stringify(await sw.evaluate(() => chrome.storage.local.get(null)));
+    check("Prevy: no warning, dismissal or checked content is stored", !/holdy|dismiss|kyc|otp|sbi-kyc|lucky draw|parcel/i.test(prevyStored) && Object.keys(JSON.parse(prevyStored)).every((k) => ["prevenza.schema", "prevenza.settings", "prevenza.stats"].includes(k)));
+
+    // Hindi, then Tamil, then back to English (only Prevy's short messages are translated)
+    for (const [code, re] of [["hi", /[\u0900-\u097f]/], ["ta", /[\u0b80-\u0bff]/]]) {
+      await dash.evaluate((c) => chrome.runtime.sendMessage({ type: "prevenza/update-settings", payload: { settings: { language: c } } }), code);
+      await dash.reload();
+      await dash.waitForSelector("#legend li");
+      await sleep(400);
+      await msgCard("Dear customer, your SBI KYC is pending. Share your OTP immediately or your account will be blocked.");
+      card = await cardInfo("#msg-result");
+      check("Prevy (" + code + "): the headline and the steps are in the chosen language, and it says some details stay in English", card.kind === "card" && re.test(card.h3) && re.test(card.text) && card.actions === 5, (card.h3 || "").slice(0, 40));
+    }
+    await dash.evaluate(() => chrome.runtime.sendMessage({ type: "prevenza/update-settings", payload: { settings: { language: "en" } } }));
+    await dash.reload();
+    await dash.waitForSelector("#legend li");
+    await sleep(400);
+    await msgCard("Dear customer, your SBI KYC is pending. Share your OTP immediately or your account will be blocked.");
+    check("Prevy: after reloading the page it remembers nothing (the full warning shows again), and English is back", (await cardInfo("#msg-result")).repeat === false && /Do not share your OTP or PIN/.test((await cardInfo("#msg-result")).h3 || ""));
+    await dash.click("#msg-clear");
+
     // The popup on a real website tab (the page is served from a look-alike name by the test browser, no real network)
     const scam = await ctx.newPage();
     watch(scam, "look-alike site");
@@ -588,12 +722,16 @@ const server = http
     check("popup shows a shape-and-label risk pill", (await popup2.$("#risk-pill.pill-danger")) !== null);
     await popup2.click("#why summary");
     check("popup explains why in plain language (reasons list)", (await popup2.$$eval("#reasons li", (l) => l.length)) >= 2 && /SBI/.test(await popup2.textContent("#reasons")));
+    // Step 7: Prevy speaks briefly in the popup for a risky page, and the plain popup on a browser page stays silent.
+    check("popup (Step 7): Prevy shows a short warning card for a high-risk page, with the website headline", (await popup2.$("#holdy-slot .holdy")) !== null && /This website address looks suspicious/.test(await popup2.textContent("#holdy-slot h3")) && /cannot block a website|Show details/.test(await popup2.textContent("#holdy-slot")));
+    check("popup (Step 7): Prevy stays silent where nothing was checked", (await popup.textContent("#holdy-slot")).trim() === "");
     await popup2.screenshot({ path: path.join(SHOTS, "8-popup-high-risk.png") });
 
     // protection off -> the popup must not scan
     await popup2.click("#enabled", { force: true });
     await sleep(700);
     check("protection off: the popup goes back to 'Not scanned yet' and says why", (await popup2.textContent("#risk-pill")) === "Not scanned yet" && /Protection is off/.test(await popup2.textContent("#risk-help")));
+    check("popup (Step 7): protection off also removes Prevy's warning", (await popup2.textContent("#holdy-slot")).trim() === "");
     const offReply = await popup2.evaluate(() => chrome.runtime.sendMessage({ type: "prevenza/analyze-site", payload: { hostname: "sbi-kyc-update.xyz", protocol: "http:" } }));
     check("protection off: the background refuses to analyse", offReply.ok === true && offReply.skipped === "protection-off" && !offReply.result);
     await popup2.click("#enabled", { force: true });

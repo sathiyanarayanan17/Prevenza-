@@ -32,34 +32,6 @@
     return ul;
   }
 
-  /** Prevy's warning. Only shown for MEDIUM risk or higher, and it says plainly that it cannot stop a payment. */
-  function renderWarning(w, disclaimer) {
-    const box = el("section", "holdy");
-    box.setAttribute("data-level", w.level);
-    box.setAttribute("aria-labelledby", "upi-holdy-h");
-    const head = el("div", "holdy-head");
-    const mascot = el("span");
-    mascot.setAttribute("data-mascot", "44");
-    mascot.setAttribute("aria-hidden", "true");
-    const title = el("h3", null, w.lead + " " + w.headline);
-    title.id = "upi-holdy-h";
-    head.append(mascot, title);
-    box.append(head, el("p", null, w.detail), el("p", "muted small", "What you can do:"));
-    const actions = el("ul");
-    const review = el("li");
-    const reviewBtn = el("button", "btn", w.actions[0]);
-    reviewBtn.type = "button";
-    reviewBtn.addEventListener("click", () => {
-      $("upi-check").scrollIntoView({ block: "start" });
-      FIELDS.upiId.focus();
-    });
-    review.appendChild(reviewBtn);
-    actions.appendChild(review);
-    w.actions.slice(1).forEach((line) => actions.appendChild(el("li", null, line)));
-    box.append(actions, el("p", "muted small", disclaimer));
-    return box;
-  }
-
   function render(reply) {
     result.textContent = "";
     if (!reply.ok) {
@@ -89,7 +61,16 @@
     result.appendChild(verdict);
     result.appendChild(el("p", "muted small", a.scoreMeaning + " Prevenza cannot tell whether a payment is a scam. It can only point out signs worth checking."));
 
-    if (r.warning) result.appendChild(renderWarning(r.warning, r.cannotStop));
+    // Prevy's card (Step 7, shared with every checker). For UPI, "Review" returns you to the form; it never acts on a payment.
+    const holdySlot = el("div", "holdy-slot");
+    result.appendChild(holdySlot);
+    H.holdyCard.render(holdySlot, a, {
+      context: "upi",
+      onReview: () => {
+        $("upi-check").scrollIntoView({ block: "start" });
+        FIELDS.upiId.focus();
+      },
+    });
 
     if (r.problems.length) {
       result.appendChild(el("h3", null, "Details that could not be used"));

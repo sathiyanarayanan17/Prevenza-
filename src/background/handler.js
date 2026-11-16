@@ -95,6 +95,13 @@
       return checked > 0 ? { module: { ok: true, indicators }, checked } : { module: undefined, checked: 0 };
     }
 
+    /** Step 7: the central engine's view of a URL result, so Prevy can speak about links. Undefined without the engine. */
+    function urlAssessment(result) {
+      if (!riskEngine || !result || result.ok !== true || !Array.isArray(result.indicators)) return undefined;
+      const indicators = result.indicators.map((i) => ({ id: i.id, label: i.label, why: i.why, weight: i.weight, severity: i.severity, critical: i.critical === true }));
+      return riskEngine.assess({ url: { ok: true, indicators } });
+    }
+
     function classifySender(sender) {
       if (!sender || sender.id !== runtimeId) return "foreign";
       if (typeof sender.url === "string" && sender.url.startsWith(extOrigin)) return "page";
@@ -155,7 +162,8 @@
           const settings = await store.getSettings();
           if (!settings.enabled) return { ok: true, skipped: "protection-off" };
           if (H.isMuted(p.hostname, settings.mutedSites)) return { ok: true, skipped: "quiet-site" };
-          return { ok: true, result: urlIntel.analyzeSite({ hostname: p.hostname, protocol: p.protocol }) };
+          const siteResult = urlIntel.analyzeSite({ hostname: p.hostname, protocol: p.protocol });
+          return { ok: true, result: siteResult, assessment: urlAssessment(siteResult) };
         }
 
         // The user typed or pasted this address into the link checker. Nothing is stored.
@@ -169,7 +177,7 @@
           const result = urlIntel.analyzeUrl(p.url);
           // A site on the quiet list is still checked when the user asks directly; the answer says so.
           const quiet = result.ok && H.isMuted(result.host, settings.mutedSites);
-          return { ok: true, result, quietSite: !!quiet };
+          return { ok: true, result, quietSite: !!quiet, assessment: urlAssessment(result) };
         }
 
         // The user pasted this text into the message checker. It is analysed in memory and never stored.

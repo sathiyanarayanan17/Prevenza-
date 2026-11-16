@@ -92,6 +92,9 @@
     if (typeof a.score === "number") verdict.appendChild(el("span", "score", "Warning level " + a.score + " of 100"));
     result.appendChild(verdict);
     result.appendChild(el("p", "muted small", a.scoreMeaning));
+    const holdySlot = el("div", "holdy-slot");
+    result.appendChild(holdySlot);
+    let whyHeading = null;
 
     result.appendChild(
       el("p", null, r.primaryCategory ? "Looks like: " + r.primaryCategory.label : "No specific kind of scam stood out in this message.")
@@ -124,7 +127,8 @@
     }
 
     // Why. Every line comes from a sign that was actually found.
-    result.appendChild(el("h3", null, "Why this result"));
+    whyHeading = el("h3", null, "Why this result");
+    result.appendChild(whyHeading);
     if (a.reasons.length === 0) {
       result.appendChild(el("p", "muted", "No strong warning signs were found in what was checked. " + a.confidence.note));
     } else {
@@ -150,6 +154,7 @@
     const checked = "Checked: message text" + (r.linksChecked > 0 ? " and " + r.linksChecked + (r.linksChecked === 1 ? " link" : " links") + " inside it" : "") + ".";
     result.appendChild(el("p", "muted small", checked + " Confidence: " + a.confidence.level.toLowerCase() + ". " + a.confidence.note));
 
+    H.holdyCard.render(holdySlot, a, { context: "message", reviewTarget: () => whyHeading });
     H.ui.placeMascots(result);
   }
 

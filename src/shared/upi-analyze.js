@@ -13,14 +13,15 @@
 (function (root, factory) {
   const isNode = typeof module === "object" && module.exports;
   const rules = isNode ? require("./upi-rules.js") : root.Prevenza.upiRules;
-  const api = factory(rules);
+  const holdy = isNode ? require("./holdy.js") : root.Prevenza.holdy;
+  const api = factory(rules, holdy);
   if (isNode) {
     module.exports = api;
   } else {
     root.Prevenza = root.Prevenza || {};
     root.Prevenza.upiAnalyze = api;
   }
-})(typeof self !== "undefined" ? self : this, function (R) {
+})(typeof self !== "undefined" ? self : this, function (R, holdy) {
   "use strict";
 
   const VPA_RE = /^[a-z0-9][a-z0-9._-]{0,48}@[a-z][a-z0-9]{1,30}$/;
@@ -277,36 +278,21 @@
   }
 
   // ---------------------------------------------------------------- Holdy's warning for a UPI result
-  // Shown only when the risk engine says MEDIUM or higher, and the headline follows the evidence that was actually found.
-  const HEADLINES = Object.freeze([
-    { when: /otp|pin|credential/, headline: "Never share your UPI PIN or OTP with anyone.", detail: "A PIN or OTP is only for you. Nobody who is genuinely helping you will ask for it." },
-    { when: /receive_money|pay_to_receive|collect|refund/, headline: "Someone asking you to pay to receive money? Be careful.", detail: "You never need to pay, scan a code, enter a PIN or approve a request in order to receive money." },
-    { when: /safe_account|custody/, headline: "There is no such thing as a safe account for your money.", detail: "No bank or office asks you to move money to a safe account." },
-    { when: /kyc|parcel|customer_care/, headline: "Fees for KYC, parcels or support are a common trick.", detail: "Check with the real company, using a website or number you already trust." },
-  ]);
-
-  const ACTIONS = Object.freeze([
-    "Review the payment details above.",
-    "Cancel and check with the recipient, using a phone number you already know.",
-    "Ask a trusted family member or friend.",
-    "Continue only after you understand the warning and have checked who you are paying.",
-  ]);
-
+  // Since Step 7 the wording comes from the shared Prevy module (holdy.js), so every checker speaks the same way.
+  // This keeps the Step 5 shape: { level, lead, headline, detail, actions, disclaimer }, English, MEDIUM or higher only.
   const CANNOT_STOP = "Prevenza cannot stop or cancel a payment in your UPI app. Only you can decide whether to pay.";
 
   /** Returns null when no warning is called for (LOW, inconclusive or no result). */
   function holdyWarning(assessment) {
-    if (!assessment || !["MEDIUM", "HIGH", "CRITICAL"].includes(assessment.category) || !Array.isArray(assessment.evidence)) return null;
-    const ids = assessment.evidence.filter((e) => e.points > 0).map((e) => e.id);
-    const hit = HEADLINES.find((h) => ids.some((id) => h.when.test(id)));
-    const lead = assessment.category === "CRITICAL" ? "Stop and check before you pay." : "Hold on!";
+    if (!holdy || !assessment || !["MEDIUM", "HIGH", "CRITICAL"].includes(assessment.category) || !Array.isArray(assessment.evidence)) return null;
+    const m = holdy.build(assessment, { context: "upi", language: "en" });
     return {
       level: assessment.category,
-      lead,
-      headline: hit ? hit.headline : "Check the recipient before sending money.",
-      detail: hit ? hit.detail : "Some details of this payment look unusual. Make sure you know who you are paying and why.",
-      actions: ACTIONS.slice(),
-      disclaimer: CANNOT_STOP,
+      lead: m.lead,
+      headline: m.headline,
+      detail: m.simple[0] || "Some details of this payment look unusual. Make sure you know who you are paying and why.",
+      actions: m.actions.slice(),
+      disclaimer: m.disclaimer,
     };
   }
 

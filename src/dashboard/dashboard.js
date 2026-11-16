@@ -11,7 +11,7 @@
     ["Scam message checker (English, Hindi, Tamil, Hinglish)", "Ready"],
     ["UPI payment analyzer", "Ready"],
     ["Screenshot reader (offline text reading)", "Ready"],
-    ["Prevy warnings that adapt to every check", "Planned"],
+    ["Prevy warnings that adapt to every check", "Ready"],
     ["Risk score and warning on the page you are visiting", "Planned"],
     ["Prevy emergency help and safety button", "Planned"],
     ["Whole interface in Hindi and Tamil", "Planned"],
@@ -150,6 +150,11 @@
     const list = document.createElement("ul");
     list.className = "reasons";
     H.ui.renderIndicators(list, result.indicators);
+    // Prevy's card or note (Step 7), from the central risk engine's view of this address.
+    const holdySlot = document.createElement("div");
+    holdySlot.className = "holdy-slot";
+    box.appendChild(holdySlot);
+    if (reply.assessment) H.holdyCard.render(holdySlot, reply.assessment, { context: "url", reviewTarget: () => list });
     if (result.indicators.length) box.appendChild(list);
     else box.appendChild(paragraph("Nothing unusual was found in the address.", "muted small note"));
   }

@@ -13,6 +13,7 @@
     riskHelp: $("risk-help"),
     why: $("why"),
     reasons: $("reasons"),
+    holdy: $("holdy-slot"),
     status: $("status"),
     version: $("version"),
     preview: $("preview"),
@@ -27,6 +28,22 @@
     el.riskHelp.textContent = helpText;
     el.why.hidden = true;
     el.reasons.textContent = "";
+    el.holdy.textContent = "";
+  }
+
+  // Step 7: Prevy speaks in the popup only when there is a real warning (MEDIUM or higher), and briefly.
+  // A LOW page stays silent, as the project rules require.
+  function showHoldy(assessment) {
+    el.holdy.textContent = "";
+    if (!assessment || !["MEDIUM", "HIGH", "CRITICAL"].includes(assessment.category)) return;
+    H.holdyCard.render(el.holdy, assessment, {
+      context: "url",
+      compact: true,
+      onReview: () => {
+        el.why.open = true;
+        el.why.querySelector("summary").focus();
+      },
+    });
   }
 
   function renderProtection() {
@@ -64,6 +81,7 @@
     if (result.hostUnicode && result.hostUnicode !== result.host) el.site.textContent = result.hostUnicode + " (" + result.host + ")";
     H.ui.renderIndicators(el.reasons, result.indicators, 4);
     el.why.hidden = result.indicators.length === 0;
+    showHoldy(reply.assessment);
   }
 
   async function loadTab() {

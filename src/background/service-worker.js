@@ -14,6 +14,8 @@ importScripts(
   "../shared/message-rules.js",
   "../shared/message-scan.js",
   "../shared/upi-rules.js",
+  "../shared/holdy-text.js",
+  "../shared/holdy.js",
   "../shared/upi-analyze.js",
   "../shared/screenshot.js",
   "./handler.js"

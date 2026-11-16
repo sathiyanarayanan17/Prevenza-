@@ -2,7 +2,14 @@
 
 A friendly, privacy-first Chrome extension that helps people pause before they pay a scammer.
 
-**Status: Step 6 (screenshot checker with offline text reading).** On top of Steps 1 to 5 (foundation, URL intelligence, central risk engine, multilingual message checker, UPI payment analyzer), the dashboard can read the text in a screenshot you choose, entirely on your device, and check it with the same message rules and risk engine. Nothing is read from WhatsApp, SMS, banking sites or UPI apps, and nothing you check is stored.
+**Status: Step 7 (Prevy smart interventions).** On top of Steps 1 to 6 (foundation, URL intelligence, central risk engine, multilingual message checker, UPI payment analyzer, offline screenshot checker), Prevy now explains every result from the central risk engine in plain words, with safety steps, in English, Hindi or Tamil. Nothing is read from WhatsApp, SMS, banking sites or UPI apps, and nothing you check is stored.
+
+### How Prevy decides what to say (Step 7)
+
+- `src/shared/holdy.js` turns a risk-engine result into Prevy's message. It never scores: LOW gives a small note, MEDIUM a caution card, HIGH a warning card, CRITICAL a "stop and check first" card, INCONCLUSIVE a "could not confidently check" note. No result means Prevy says nothing.
+- Headlines and simple explanations are chosen from the evidence the engine found. A specific warning (OTP, website look-alike, safe account, fake receipt...) appears only when matching evidence exists.
+- `src/shared/holdy-card.js` shows it on the dashboard and, briefly, in the popup (popup only for MEDIUM or higher). Dismissing leaves a note that the result is still at its level. Repeats of the same result show a short card. Both are remembered only in the page's memory, by a fingerprint of the result (level and rule ids), never by the content checked.
+- `src/shared/holdy-text.js` holds Prevy's text. Hindi and Tamil cover Prevy's short messages only and need native-speaker review. The detailed reasons stay in English.
 
 ## Load it in Chrome
 
