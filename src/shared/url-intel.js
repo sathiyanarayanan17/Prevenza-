@@ -146,6 +146,7 @@
   // ---------------------------------------------------------------- parsing
 
   const NON_WEB_SCHEME = /^(javascript|data|mailto|tel|sms|file|ftp|blob|about|chrome|chrome-extension|view-source|upi|intent|whatsapp|market|ws|wss):/i;
+  const VALID_LABEL = /^[a-z0-9_](?:[a-z0-9_-]*[a-z0-9_])?$/;
 
   /** Safely turn text into a parsed address. Never throws. */
   function parseUrl(input) {
@@ -172,6 +173,10 @@
     const host = url.hostname.replace(/\.$/, "").toLowerCase();
     if (!host || host.length > R.LIMITS.maxHostnameLength) return fail("invalid");
     if (host.split(".").some((l) => l.length > R.LIMITS.maxLabelLength)) return fail("invalid");
+    // Step 11 fix: the browser's address parser accepts names such as "ht!tp" or "-bad-" that no real website can have.
+    // Each part of a name must be letters, digits, hyphens or underscores, and must not start or end with a hyphen.
+    // (International names arrive here already converted to "xn--" form, so they pass. IPv6 addresses are in brackets.)
+    if (!host.startsWith("[") && !host.split(".").every((l) => VALID_LABEL.test(l))) return fail("invalid");
 
     // The text the person actually typed between "//" and the next "/", used to spot disguised number addresses.
     const m = /^[a-z][a-z0-9+.-]*:\/\/([^/?#\\]*)/i.exec(candidate);

@@ -82,6 +82,15 @@
     el.textContent = label(pill.key) || pill.label;
   }
 
+  /**
+   * Step 11: the URL analyzer's plain summary sentence that fits a central-engine category, so the words under a pill
+   * always agree with the pill. CRITICAL uses the strongest sentence. Unknown categories give null (say nothing).
+   */
+  function urlSummaryFor(category) {
+    const level = { LOW: "low", MEDIUM: "medium", HIGH: "high", CRITICAL: "high" }[category];
+    return level && H.urlIntel && H.urlIntel.SUMMARY ? H.urlIntel.SUMMARY[level] : null;
+  }
+
   const SEVERITY_WORDS = { high: "Strong sign", medium: "Warning sign", low: "Minor sign", info: "Note" };
 
   /** Fill a <ul> with the reasons from an analysis, in plain language. Text only, never HTML. */
@@ -138,5 +147,5 @@
     return phrases;
   }
 
-  H.ui = { placeMascots, applyPrefs, label, toast, formatDate, setRiskPill, setCategoryPill, renderIndicators, renderMarked };
+  H.ui = { placeMascots, applyPrefs, label, toast, formatDate, setRiskPill, setCategoryPill, urlSummaryFor, renderIndicators, renderMarked };
 })();

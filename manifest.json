@@ -3,7 +3,7 @@
   "name": "Prevenza: Scam Guard",
   "short_name": "Prevenza",
   "version": "0.1.0",
-  "description": "A friendly, privacy-first scam guard. Step 1 foundation: no scam detection yet. Runs on your device and sends nothing anywhere.",
+  "description": "Privacy-first scam guard. Checks links, messages, UPI payments and screenshots on your device. Nothing is sent anywhere.",
   "minimum_chrome_version": "110",
   "icons": {
     "16": "assets/icons/icon16.png",

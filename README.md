@@ -1,161 +1,163 @@
 # Prevenza: Scam Guard
 
-A friendly, privacy-first Chrome extension that helps people pause before they pay a scammer.
+**Pause. Check. Stay safe.** A friendly, privacy-first Chrome extension that helps people in India stop and check before they pay a scammer, share an OTP or trust a fake payment screenshot.
 
-**Status: Step 8 (Elder Mode, family-friendly protection).** On top of Steps 1 to 6 (foundation, URL intelligence, central risk engine, multilingual message checker, UPI payment analyzer, offline screenshot checker), Prevy now explains every result from the central risk engine in plain words, with safety steps, in English, Hindi or Tamil. Nothing is read from WhatsApp, SMS, banking sites or UPI apps, and nothing you check is stored.
+Prevy, the extension's assistant, explains every result in plain words. Everything runs on your device. Nothing you check is stored or sent anywhere.
 
-### Elder Mode (Step 8)
+> The project brief calls the product "Hold On: Scam Guard" and the assistant "Holdy". In this codebase the product is **Prevenza** and the assistant is **Prevy** (the `holdy*.js` file names are left over from the brief). They are the same thing.
 
-Turn it on in **Settings > Assistant and accessibility**. It is stored as the existing `elderMode` setting in `chrome.storage.local`, so it survives closing the browser. No new data, no new permission, no network.
+## The problem
 
-- **Look:** 22px text (normal mode is 16px), more spacing, buttons and lists at least 56px tall, stronger contrast (text 19.8:1, secondary text 15.6:1, measured in the browser test), heavier borders and focus rings.
-- **Dashboard:** one column. "Ask someone you trust" and the four checkers come first. Statistics, the risk scale, the system check and the roadmap move to the bottom under "More tools and information". Nothing is removed.
-- **Warnings:** the Step 7 card gets a plain panel: *What we found*, *Why this can be dangerous*, *What to do now* (one or two numbered steps) and an "Ask someone you trust" button. The level is always a word plus an icon, never colour alone. The Step 7 detail (signs, five safety steps) stays below in a section that is open by default and can be closed. A repeat of the same result shows the full panel again. Nothing is dismissed or approved by itself.
-- **LOW and INCONCLUSIVE:** still small notes. They add one sentence ("check for yourself with the real bank or company", or "ask someone you trust"). Neither is ever called safe.
-- **Levels:** LOW, MEDIUM, HIGH, CRITICAL and INCONCLUSIVE come from the central risk engine and its thresholds are unchanged.
-- **Ask someone you trust:** information only (`src/shared/family-guide.js`). It lists how to check with someone safely. It has no input box, link or phone number, contacts nobody, and stores nothing. The panel exists in the page only while it is open.
-- **Wording:** `src/shared/elder-text.js` holds the plain explanations (14 topics, chosen from the evidence the engine found) and the guide. `src/shared/holdy.js` adds `model.elder` only when Elder Mode is on.
+Online fraud in India often arrives as an ordinary-looking SMS, WhatsApp message, link, UPI request or "payment successful" screenshot. Common tricks are fake KYC updates, "digital arrest" calls, parcel re-delivery fees, lottery prizes, fake customer care and requests to move money to a "safe account". Scammers create panic so people act before they think. Older people and first-time digital payment users are hit hardest.
 
-### Languages (Step 8)
+## The solution
 
-English, Hindi and Tamil are the interface languages (Settings > Language). What is translated: Prevy's warnings, the Elder Mode panel, the family guide, risk labels, and the main headings and buttons of the popup, dashboard and settings (`src/shared/i18n.js`). What is not: the explanations under each heading, the detailed reasons each checker gives, statistics, the system check, the roadmap, and messages such as "Could not save". The Hindi and Tamil text was written by the developer and **needs native-speaker review**. The roadmap still lists "Whole interface in Hindi and Tamil" as planned.
+Prevenza gives people a calm place to check something **before** they act:
 
-Hinglish is supported only for **checking messages** (the language list in the message checker). It is not an interface language. Changing the interface language does not change how messages are analysed (tested: same warning level).
-### How Prevy decides what to say (Step 7)
+- Paste a link, a message or payment details, or choose a screenshot.
+- Prevenza checks it offline, explains what looks wrong and what to do next, and never says "safe". A low result is worded as "no strong warning signs".
+- If something has already gone wrong, **Emergency Help** gives step-by-step guidance and the official Indian reporting channels.
 
-- `src/shared/holdy.js` turns a risk-engine result into Prevy's message. It never scores: LOW gives a small note, MEDIUM a caution card, HIGH a warning card, CRITICAL a "stop and check first" card, INCONCLUSIVE a "could not confidently check" note. No result means Prevy says nothing.
-- Headlines and simple explanations are chosen from the evidence the engine found. A specific warning (OTP, website look-alike, safe account, fake receipt...) appears only when matching evidence exists.
-- `src/shared/holdy-card.js` shows it on the dashboard and, briefly, in the popup (popup only for MEDIUM or higher). Dismissing leaves a note that the result is still at its level. Repeats of the same result show a short card. Both are remembered only in the page's memory, by a fingerprint of the result (level and rule ids), never by the content checked.
-- `src/shared/holdy-text.js` holds Prevy's text. Hindi and Tamil cover Prevy's short messages only and need native-speaker review. The detailed reasons stay in English.
+## Main features
 
-## Load it in Chrome
-
-1. Open `chrome://extensions` in Chrome (version 110 or newer).
-2. Turn on **Developer mode** (top-right switch).
-3. Click **Load unpacked**.
-4. Choose this folder (the one that contains `manifest.json`).
-5. Pin the shield icon from the puzzle-piece menu. Click it to open the popup.
-
-To see Prevy on a page: open **Settings** (from the popup) and turn on "Show Prevy on pages", or open any website and click "Say hi to Prevy" in the popup.
-
-After you change code, click the circular reload arrow on the extension's card in `chrome://extensions`.
-
-If Chrome shows an error on the card, click **Errors** to read it. Most problems are a missing file named in `manifest.json`; `npm test` checks for that.
-
-## What is in the box
-
-| Path | What it does |
+| Feature | What it does |
 |---|---|
-| `manifest.json` | Manifest V3 definition: one permission (`storage`), content script on http(s) pages, strict CSP that blocks network access. |
-| `src/background/service-worker.js` | The background worker. Registers listeners and connects the router to Chrome. |
-| `src/background/handler.js` | The message router. Decides who may send what and returns replies. Pure logic, fully unit tested. |
-| `src/content/content.js` | Runs on web pages. Reads only the site name. Shows Prevy only if the user asks. |
-| `src/popup/*` | Popup: protection switch, current site, risk status, shortcuts. |
-| `src/settings/*` | Settings page: elder mode, language, sensitivity, assistant, quiet sites, data reset, privacy facts. |
-| `src/dashboard/*` | Dashboard: counters, risk scale, system check, roadmap. |
-| `src/shared/constants.js` | Brand, message types, storage keys, defaults. |
-| `src/shared/settings.js` | Validation and cleaning of settings and statistics. |
-| `src/shared/storage.js` | Storage layer (`chrome.storage.local` only) with a write queue. |
-| `src/shared/messaging.js` | Helpers pages use to talk to the worker and to tabs. |
-| `src/shared/url-rules.js` | Step 2: configurable rule data (weights, thresholds, brand names and real domains, shorteners, risky endings, keywords). |
-| `src/shared/url-intel.js` | Step 2: the offline URL analyzer (safe parsing, punycode decoding, look-alike and structure checks, scoring, explanations). |
-| `src/shared/risk-rules.js`, `risk-engine.js` | The central risk engine. The only place evidence becomes a 0-100 warning level (LOW, MEDIUM, HIGH, CRITICAL). Missing modules are "unavailable", never "safe". |
-| `src/shared/message-rules.js` | Step 4: configurable message rules (phrase patterns per language, weights, plain-language explanations, scam categories). |
-| `src/shared/message-scan.js` | Step 4: the offline message scanner (text cleaning, language guess, phrase matching, highlights, link extraction). It builds evidence and leaves scoring to the risk engine. |
-| `src/dashboard/message-check.js` | Step 4: the "Check a message" section of the dashboard. |
-| `src/shared/upi-rules.js`, `upi-analyze.js`, `src/dashboard/upi-check.js` | Step 5: the UPI payment analyzer (ID, name, amount, reason and pasted QR text) and its dashboard section. |
-| `src/shared/screenshot.js`, `src/dashboard/ocr-runner.js`, `screenshot-check.js` | Step 6: screenshot checks (file type and size, reading quality, receipt facts), the offline OCR runner and the dashboard section. |
-| `vendor/tesseract/*` | Step 6: the bundled offline OCR engine and language data (generated by `scripts/make-ocr-assets.js`). |
-| `src/shared/elder-text.js`, `i18n.js`, `family-guide.js` | Step 8: Elder Mode wording, interface labels in three languages, and the information-only "Ask someone you trust" guide. |
-| `src/shared/mascot.js`, `ui.js`, `theme.css` | Prevy, UI helpers, and the dark navy and blue theme. |
-| `assets/icons/*` | Extension icons (generated by `scripts/make-icons.js`). |
-| `test/*.test.js` | Unit tests (manifest, syntax, storage, messaging, security). |
-| `e2e/run.js` | Real-browser test that loads the extension into Chromium. |
-| `docs/KIRO_PROMPTS.md` | Step-by-step prompts for building the next steps with Kiro. |
-| `.kiro/` | Kiro steering, spec and hook for this project. |
+| Popup | Protection on/off, a rating of the open website (from its site name only), shortcuts, Emergency Help. |
+| Website checker | Offline URL analysis: look-alike brand names, misleading sub-sites, number addresses, link shorteners, the `@` and backslash tricks, mixed alphabets and punycode. |
+| Message checker | English, Hindi, Tamil and Hinglish. Fake KYC, digital arrest, parcel fees, OTP or UPI PIN requests, fake support, lottery, safe-account and other patterns. Suspicious phrases are marked in your own text. Links inside are checked too. |
+| UPI payment checker | Recipient ID, name, amount, reason and pasted QR text. Flags "pay to receive", fake refunds, KYC charges and PIN-to-receive requests. There is no field for a PIN or OTP. |
+| Screenshot checker | You choose a PNG or JPEG. Its text is read on your device by bundled offline OCR (English, Hindi, Tamil), shown to you for correction, then checked. A screenshot is never treated as proof of payment. |
+| Central risk engine | One engine turns evidence from every checker into a 0 to 100 warning level and a category: LOW, MEDIUM, HIGH, CRITICAL, or INCONCLUSIVE when it cannot decide. Missing or failed checks are never counted as safe. |
+| Prevy | One assistant card for every checker. It explains the warning, shows the signs found and suggests the next step. It is quiet for LOW, and a repeated result gets a short card. |
+| Elder Mode | 22px text, buttons at least 56px tall, stronger contrast, one-column dashboard, plain explanations with numbered steps, and an "Ask someone you trust" guide. |
+| Emergency Help | Seven situations (money sent, OTP or PIN shared, suspicious link, fake KYC, digital arrest, fake receipt, other). Reporting guidance: the National Cyber Crime Reporting Portal and helpline 1930. Nothing is called, sent or filed by the extension. |
+| Unified dashboard | A menu to every checker, a shared result summary, and privacy-safe counts (checks done by category, last check time). |
+| Languages | Interface labels, Prevy's messages, the Elder Mode panel and the trust guide in English, Hindi and Tamil. Detailed reasons and the emergency steps are English only. Hindi and Tamil text needs native-speaker review. |
 
-## How the parts talk
+## Architecture
 
 ```
-popup / settings / dashboard ──(chrome.runtime.sendMessage)──▶ background worker ──▶ chrome.storage.local
-         │                                                         │
-         └──(chrome.tabs.sendMessage: status, preview)──▶ content script ◀──(broadcast: settings updated)
-                                                                   │
-                                                  content script ──(CONTENT_READY)──▶ background worker
+ popup / settings / dashboard / emergency pages
+        │  chrome.runtime.sendMessage  { type, payload }
+        ▼
+ background service worker ── handler.js (checks every sender and payload)
+        │
+        ├── url-intel.js ────────┐
+        ├── message-scan.js ─────┤  each checker returns EVIDENCE only
+        ├── upi-analyze.js ──────┤  (indicators with weights)
+        ├── screenshot.js ───────┤
+        │                        ▼
+        │                 risk-engine.js  ← the ONLY place a score or category is made
+        │                        │
+        │                        ▼
+        │        assessment { score, category, confidence, evidence, reasons, actions }
+        │
+        └── storage.js ── chrome.storage.local: settings + counters only
+
+ dashboard page: ocr-runner.js runs Tesseract (WebAssembly) locally on the chosen image and sends only the text.
+ pages: risk-result.js (summary) and holdy-card.js (Prevy) DISPLAY the assessment; they never score.
+ content script (on websites): reads only location.hostname and location.protocol; shows Prevy only if asked.
 ```
 
-Every message is `{ type, payload }`. The worker checks the sender before acting: extension pages may read and change settings, content scripts may only announce themselves, and everything else is rejected.
+## Technology
 
-## Privacy and security
+- Chrome Extension Manifest V3 (minimum Chrome 110).
+- Plain JavaScript, HTML and CSS. No framework and no build step.
+- [Tesseract.js](https://github.com/naptha/tesseract.js) 7.0.0 (Apache-2.0) with English, Hindi and Tamil data, bundled in `vendor/tesseract/` (about 11.3 MB).
+- Tests: Node's built-in test runner, [fast-check](https://github.com/dubzzz/fast-check) for property tests, and [playwright-core](https://playwright.dev) to drive a real Chromium with the extension loaded. These are development-only; the extension itself has no dependencies to download.
 
-- One permission: `storage`. No host permissions.
-- The content script reads only `location.hostname` and `location.protocol`. It never reads form fields, passwords, cookies, page text or keystrokes.
-- Stored data: your settings and four counters/timestamps. No web addresses, no page text.
-- Settings use `chrome.storage.local`, so nothing is synced to a Google account.
-- The page CSP includes `connect-src 'none'`, so the extension cannot make network requests at all. `test/security.test.js` also fails if a network API, `eval`, `innerHTML` or an external URL appears in the code.
-- Step 6 added one CSP keyword, `'wasm-unsafe-eval'`, because the offline OCR engine is WebAssembly. It allows compiling WebAssembly only. JavaScript `eval`, inline scripts and every remote source stay blocked, and `connect-src 'none'` is unchanged.
-- Screenshots are chosen by you with a file picker. Nothing is captured automatically. The image is read on this device, its bytes are released when reading ends, and neither the image nor its text is stored.
-- Prevy is an original character. It is not Microsoft's Clippy.
-
-## Offline text reading (Step 6)
-
-The screenshot checker uses [Tesseract.js](https://github.com/naptha/tesseract.js) 7.0.0 (Apache-2.0), bundled in `vendor/tesseract/` with English, Hindi and Tamil language data (`best_int` models). Nothing is downloaded at run time: the worker, the WebAssembly engine and the language data are all local files, browser caching is turned off (`cacheMethod: "none"`), and the worker ends after every read.
-
-- Size: about 11.3 MB in total (engine 3.7 MB, English 3.8 MB, Hindi 1.8 MB, Tamil 1.8 MB, as base64 text).
-- Speed: measured at about 1 to 1.5 seconds per screenshot in the real-browser test on the development machine. Older phones and PCs will be slower.
-- To rebuild the files after changing the pinned versions: `npm install`, then `npm run ocr:assets`.
-- Limits: blurry, small, rotated or cropped text reads badly. Prevenza shows the text it read so you can correct it, and a poor reading with no warning signs is reported as "Inconclusive", never as safe.
-
-## Emergency Help (Step 9)
-
-- A calm "Emergency Help" button is in the popup and the dashboard header. It opens `src/emergency/emergency.html`.
-- The user picks one of seven situations (money sent, OTP or UPI PIN shared, suspicious link, fake bank or KYC message, digital arrest threat, fake payment screenshot, other) and sees safety steps. Elder Mode shows one simpler step at a time.
-- Reporting guidance for India: the National Cyber Crime Reporting Portal (opened only when the user presses the link) and the cyber financial fraud helpline 1930 (copied only when the user presses the button). Nothing is called, sent or filed by Prevenza.
-- Content lives in `src/shared/emergency.js`. The steps are English only (not reviewed in Hindi or Tamil); the button, page title and the Ask someone you trust guide follow the chosen language.
-- Nothing is stored. No new permission. The portal address and one `clipboard.writeText` call are the only exceptions to the "no external URLs / no clipboard" tests, each allowed in exactly one file.
-## Unified dashboard (Step 10)
-
-- The dashboard has a menu (website, message, UPI payment, screenshot, Emergency Help) that jumps to the existing checkers and puts the cursor in their first field. Each checker ends with "Back to the dashboard menu".
-- `src/shared/risk-result.js` is one result summary used by every checker: category (word and shape), warning level, confidence, evidence found, recommended action, and what could not be checked. It only describes the central risk engine's assessment; it has no thresholds of its own.
-- The overview shows aggregate counts: checks done, high or critical, low or medium, inconclusive, and the time of the last check. After a check, the page sends `prevenza/record-scan` with the risk category only. The checks themselves still never write to storage. Counts reset with "Reset statistics" in Settings.
-- Nothing that was checked is stored. The "latest check" pill lives in the page's memory only.
-## Tests
+## Folder structure
 
 ```
-npm install            # installs the browser-test library (playwright-core)
-npm test               # unit tests: manifest, syntax, storage, messaging, security, URL rules and URL analysis
-npx playwright-core install chromium   # one time, downloads a test browser
-npm run test:e2e       # checks in a real browser (opens a window for ~30 seconds)
+manifest.json              Manifest V3: permission "storage" only, strict CSP (connect-src 'none')
+assets/icons/              extension icons
+src/background/            service-worker.js (wiring), handler.js (message router and validation)
+src/content/content.js     runs on websites: site name only, optional Prevy bubble
+src/popup/                 the toolbar popup
+src/settings/              settings page (protection, Elder Mode, language, sensitivity, quiet sites, reset)
+src/dashboard/             dashboard page and the four checkers (link in dashboard.js, message-check, upi-check, screenshot-check, ocr-runner)
+src/emergency/             Emergency Help page
+src/shared/                pure logic shared by every page, also loaded in Node for tests:
+  constants.js settings.js storage.js messaging.js ui.js theme.css mascot.js
+  url-rules.js url-intel.js            website checks
+  message-rules.js message-scan.js     message checks
+  upi-rules.js upi-analyze.js          UPI checks
+  screenshot.js                        image validation, OCR quality, receipt facts
+  risk-rules.js risk-engine.js         the central risk engine
+  risk-result.js                       the shared result summary (display only)
+  holdy.js holdy-text.js holdy-card.js Prevy
+  elder-text.js i18n.js family-guide.js Elder Mode, languages, trust guide
+  emergency.js                         Emergency Help content and official details
+vendor/tesseract/          bundled offline OCR engine and language data
+test/                      unit, security and privacy tests (npm test)
+e2e/run.js                 real-browser checks (npm run test:e2e)
+scripts/                   icon and OCR asset generators, detection spot-check
+DEMO_GUIDE.md              5-minute hackathon demo
 ```
 
-Why a separate Chromium: current branded Chrome and Edge ignore the command-line flag that loads unpacked extensions, so automated tests use the open-source Chromium build.
+## Install and load in Chrome
 
-## How URL checking works (Step 2)
+You do not need Node.js just to use the extension.
 
-Two ways in, with different privacy limits:
+1. Download or clone this repository.
+2. Open Chrome and go to `chrome://extensions/`.
+3. Turn on **Developer mode** (switch at the top right).
+4. Click **Load unpacked**.
+5. Choose the project folder: the one that contains `manifest.json`.
+6. Click the puzzle-piece icon in the toolbar and pin **Prevenza: Scam Guard**.
 
-| Entry | What it receives | Where it is used |
-|---|---|---|
-| Open tab | **Site name and protocol only** (what the content script was already allowed to read) | Popup: replaces "Not scanned yet" with the real result |
-| "Check a link" | A full address **the user typed or pasted** | Dashboard link checker |
+After changing code, press the reload arrow on the extension's card. If the card shows **Errors**, click it to read the message.
 
-Nothing is stored. Results contain the host name and reasons, never the path, query or password.
+## How to use each part
 
-**What it looks for** (each reason is shown in plain language, strongest first):
+- **Popup:** click the shield icon. Use the switch to turn protection on or off. The page rating is based on the site name only. **Dashboard** opens the checkers. **Emergency Help** opens the help page.
+- **Check a website:** on the dashboard, choose "Check a website", paste the link and press **Check link**.
+- **Check a message:** choose "Check a suspicious message", paste the text, optionally pick the language, press **Analyze message**. **Clear** empties the box.
+- **Check a UPI payment:** choose "Check a UPI payment request", fill in what you have (all fields are optional, but at least one is needed) and press **Analyze payment**. Never type a PIN or OTP; there is nowhere to put one.
+- **Scan a screenshot:** choose "Scan a screenshot", pick a PNG or JPEG (up to 8 MB), choose the language in the picture, press **Read and check screenshot**. You can correct the text it read and press **Check this text again**. **Clear all** removes everything.
+- **Elder Mode and language:** open **Settings**, then *Assistant and accessibility*.
+- **Emergency Help:** choose what happened. The steps appear below. You can open the official portal or copy the helpline number. Nothing is sent.
+- **Statistics:** the dashboard overview shows counts only. Reset them in Settings.
 
-- A famous name inside an address that is not theirs (`sbi-kyc-update.xyz`), placed in front of another site (`paytm.verify-now.in`, `paypal.com.evil.xyz`), misspelled by one letter (`paytmm.com`) or copied with look-alike characters (`paypa1.com`, `amaz0n.in`). About 25 names are built in, with their real domains.
-- Mixed or look-alike alphabets in international names (a Cyrillic "a" in "apple"). Honest names in Hindi, Tamil and other languages are treated as Low, with a gentle note.
-- A bare number instead of a name, including disguised forms (`http://3640205644/`). Addresses on your own network are Low.
-- Link shorteners from a configurable list (Medium, because the destination is hidden).
-- Tricks in the address: the `@` trick (`bank.com@evil.com`), the backslash trick, a long chain of sub-sites, many hyphens, risky endings, free-hosting pages, redirect parameters and heavy encoding.
-- It does **not** punish plain `http` or treat `https` as proof of safety. One weak sign (a risky ending, a "login" word) never reaches Medium by itself.
+## Privacy and security design
 
-**Scoring.** Each indicator has a weight in `src/shared/url-rules.js`. Score below 3 is Low, 3 to 5.9 is Medium, 6 and above is High. A few critical signs (the `@` trick, mixed alphabets, look-alike letters) are High on their own. A Low result is worded as "no strong warning signs", never "safe".
+- **One permission:** `storage`. No host permissions, no optional permissions.
+- **No network:** the extension pages' Content Security Policy has `connect-src 'none'`, so even a bug could not send data. The only outside address in the code is the official reporting portal, which opens only when the user presses its link. Browser tests confirm the extension pages make no network requests.
+- **What is stored** (`chrome.storage.local`, never synced): your settings, and counters (pages watched, checks done per risk category, and the times of the last activity and last check). **Never stored:** links, messages, UPI IDs, names, amounts, screenshots or the text read from them.
+- **What the extension reads by itself:** only the site name and protocol of the open tab. It never reads form fields, passwords, OTPs, cookies, page text, keystrokes, SMS, WhatsApp or payment apps. Everything else is what you paste or choose yourself.
+- **Screenshots:** read on your device. The image bytes are released after reading. The OCR worker is shut down after each read, and browser caching is off.
+- **Safe page code:** text is inserted only as text (no `innerHTML`, no `eval`, no inline scripts), and every message to the background is checked for sender and exact fields. `test/security.test.js` fails the build if any of these rules is broken.
+- **One CSP exception:** `'wasm-unsafe-eval'`, needed to run the WebAssembly OCR engine. It allows compiling WebAssembly only.
+- **Honest wording:** no result is ever called "safe". The warning level is not a probability. A payment screenshot is never treated as proof. Emergency Help does not claim it can freeze accounts or recover money.
 
-**Respecting your settings.** Protection off: nothing is analysed. Quiet site: the open tab is not analysed (a link you paste yourself is still checked, and the answer says the site is quiet).
+## Testing
 
-**Limits.** The brand and official-domain lists are small and hand-written. A real site missing from the list whose name contains a listed brand can be flagged Medium. Domain age and reputation are not checked (they would need the network). A brand-new scam site with an ordinary-looking name scores Low. The list of two-part endings is small, not the full Public Suffix List.
+```
+npm install                               # development tools only
+npm test                                  # 396 unit, security and privacy tests
+npx playwright-core install chromium      # once: downloads a test browser
+npm run test:e2e                          # 432 checks in a real Chromium (a window opens for about 2 minutes)
+npm run audit:detection                   # prints the detection spot-check table
+```
 
-## Not yet built
+Results from the final run (Step 11): 396/396 unit tests passed, 432/432 browser checks passed. Branded Chrome ignores the command-line flag that loads unpacked extensions, so the automated tests use the open-source Chromium build. Manual loading in Chrome works as described above.
 
-UPI payment analysis, payment screenshot reading, community data, warning pop-ups, and a risk score for links and open pages. See `docs/KIRO_PROMPTS.md` for how each is planned.
+**Detection spot-check** (`scripts/detection-check.js`): 57 invented examples (25 links, 21 messages, 11 UPI requests). 52 behaved as expected, 4 were recorded without a verdict, and there was 1 false negative (a "like videos and earn" job scam was rated Low) and no false positives. This is **not an accuracy measurement**: the examples are similar to the ones the rules were written from, and there is no held-out data set.
+
+## Known limitations
+
+- Detection is rule-based and offline. It catches common patterns, not every scam. New wording, other languages and brand-new scam websites with ordinary names can be missed (for example the job/task scam above).
+- Website checks use a small built-in list of about 25 brands and their real domains, plus a short list of endings. Domain age and reputation are not checked (that would need the network).
+- The open-tab rating in the popup uses the site name only, not the page content.
+- A UPI ID that cannot be read is reported as a problem, and the rest of the details are still checked. Prevenza cannot see your UPI app, check who owns an ID, or stop a payment.
+- OCR is slower on older devices (measured at about 0.4 to 1.7 seconds per image on the development machine). Rotated, cropped or very stylised text reads badly. Poor readings with no warning signs are reported as Inconclusive.
+- Hindi and Tamil translations were written by the developer and need native-speaker review. Not everything is translated.
+- The extension does not show warnings on websites by itself (planned). The "Warnings shown" counter therefore stays at 0.
+
+## Future scope
+
+- Warning pop-up before a risky page opens.
+- A larger, reviewed rule set and a held-out test set to measure accuracy honestly.
+- Optional online checks (domain age, community reports), off by default, with explicit consent and the minimum data.
+- Full Hindi and Tamil interface reviewed by native speakers, and more Indian languages.
+- An Android companion for SMS and UPI apps, within platform privacy rules.

@@ -22,16 +22,25 @@
     ["Elder mode", "Ready"],
   ];
 
+  // Step 11: the legend lists every state a result can have, from the central risk engine (one scale everywhere).
+  const LEGEND = [
+    ["NOT_SCANNED", "Nothing has been checked yet."],
+    ["LOW", "No strong warning signs in what was checked. This is not a guarantee."],
+    ["MEDIUM", "Some unusual signs. Check carefully before you act."],
+    ["HIGH", "Strong warning signs. Do not pay or share details until you have verified."],
+    ["CRITICAL", "A clear, serious warning sign. Stop and check first."],
+    ["INCONCLUSIVE", "Prevenza could not decide. This is never treated as safe."],
+  ];
   function renderLegend() {
     const list = $("legend");
-    H.RISK_LEVELS.forEach((level) => {
+    LEGEND.forEach(([category, text]) => {
       const li = document.createElement("li");
       const pill = document.createElement("span");
-      pill.className = "pill pill-" + (level.pill || level.id);
-      pill.textContent = level.label;
+      pill.className = "pill";
+      H.ui.setCategoryPill(pill, category);
       const help = document.createElement("span");
       help.className = "muted small";
-      help.textContent = level.help;
+      help.textContent = text;
       li.append(pill, help);
       list.appendChild(li);
     });
@@ -192,13 +201,15 @@
     verdict.className = "verdict";
     const pill = document.createElement("span");
     pill.className = "pill";
-    H.ui.setRiskPill(pill, result.level);
+    // Step 11: the pill and the sentence come from the central risk engine's category, never from a second scale.
+    const category = reply.assessment && reply.assessment.category;
+    H.ui.setCategoryPill(pill, category);
     const host = document.createElement("span");
     host.className = "host";
     host.textContent = result.hostUnicode !== result.host ? result.hostUnicode + " (" + result.host + ")" : result.host;
     verdict.append(pill, host);
     box.appendChild(verdict);
-    box.appendChild(paragraph(result.summary, "muted"));
+    box.appendChild(paragraph(H.ui.urlSummaryFor(category) || "This address could not be rated. That does not mean it is safe.", "muted"));
     // Step 10: the central risk engine's view of this address, in the same summary every checker uses.
     if (reply.assessment) {
       box.appendChild(H.riskResult.render(reply.assessment, { label: "Overall result from the central risk engine" }));

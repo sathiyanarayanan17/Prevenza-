@@ -76,8 +76,15 @@
     const result = reply.result;
     if (!result || !result.ok) return resetRisk("This address could not be checked.");
 
-    H.ui.setRiskPill(el.riskPill, result.level);
-    el.riskHelp.textContent = result.summary;
+    // Step 11: the pill shows the central risk engine's category, the same one Prevy and the dashboard use.
+    const assessment = reply.assessment;
+    if (assessment && assessment.category) {
+      H.ui.setCategoryPill(el.riskPill, assessment.category);
+      el.riskHelp.textContent = H.ui.urlSummaryFor(assessment.category) || result.summary;
+    } else {
+      H.ui.setRiskPill(el.riskPill, null);
+      el.riskHelp.textContent = "This address could not be rated.";
+    }
     if (result.hostUnicode && result.hostUnicode !== result.host) el.site.textContent = result.hostUnicode + " (" + result.host + ")";
     H.ui.renderIndicators(el.reasons, result.indicators, 4);
     el.why.hidden = result.indicators.length === 0;

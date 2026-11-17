@@ -36,6 +36,7 @@ const server = http
   const port = server.address().port;
   const site = `http://localhost:${port}/`;
   const userData = fs.mkdtempSync(path.join(os.tmpdir(), "prevenza-e2e-"));
+  const launchStarted = Date.now();
   const ctx = await chromium.launchPersistentContext(userData, {
     headless: false,
     viewport: { width: 1100, height: 800 },
@@ -51,6 +52,7 @@ const server = http
   try {
     // ---- 1. extension loads, service worker runs
     let sw = ctx.serviceWorkers()[0] || (await ctx.waitForEvent("serviceworker", { timeout: 15000 }));
+    const swReadyMs = Date.now() - launchStarted; // Step 11: browser launch until the extension's worker is running
     sw.on("console", (m) => { if (m.type() === "error") errors.push("worker: " + m.text()); });
     const id = new URL(sw.url()).host;
     check("extension loads and the service worker starts", /^[a-p]{32}$/.test(id), id);
@@ -179,7 +181,8 @@ const server = http
     await dash.goto(`chrome-extension://${id}/src/dashboard/dashboard.html`);
     await dash.waitForSelector("#legend li");
     await sleep(500);
-    check("dashboard shows the four risk levels", (await dash.$$eval("#legend li", (l) => l.length)) === 4);
+    // Step 11: the legend now lists all six states the interface can show (it used to omit Critical and Inconclusive).
+    check("dashboard shows every risk state, each with a label and a shape", JSON.stringify(await dash.$$eval("#legend .pill", (p) => p.map((x) => x.textContent))) === JSON.stringify(["Not scanned yet", "Low risk", "Medium risk", "High risk", "Critical risk", "Inconclusive"]));
     check("dashboard counts the pages watched", parseInt(await dash.textContent("#stat-pages"), 10) >= 1, "pages: " + (await dash.textContent("#stat-pages")));
     check("dashboard shows planned features honestly (no fake detection)", (await dash.$$eval("#road .chip", (c) => c.filter((x) => x.textContent === "Planned").length)) >= 5);
     await dash.click("#run-check");
@@ -212,9 +215,10 @@ const server = http
     out = await checkLink("http://203.0.113.9/login");
     check("link checker: a bare number address is flagged", /number address/i.test(out) && !/Low risk/.test(out));
     out = await checkLink("https://xn--pple-43d.com");
-    check("link checker: look-alike alphabet trick is High risk", /High risk/.test(out) && /alphabets/i.test(out));
+    // Step 11: the pill now shows the central engine's category. A critical sign is Critical there (it was "High" on the old URL-only scale).
+    check("link checker: look-alike alphabet trick is Critical risk (central engine)", /Critical risk/.test(out) && /alphabets/i.test(out));
     out = await checkLink("https://sbi.co.in@evil.com/");
-    check("link checker: the @ trick is caught and the real site is named", /High risk/.test(out) && /evil\.com/.test(out));
+    check("link checker: the @ trick is caught, rated Critical risk (central engine), and the real site is named", /Critical risk/.test(out) && /evil\.com/.test(out));
     out = await checkLink("https://example.com");
     check("link checker: an ordinary site gets no needless warning", /Low risk/.test(out) && /Nothing unusual/.test(out));
     out = await checkLink("not a link ???");
@@ -880,7 +884,7 @@ const server = http
       return { guide: shown("#trust-guide"), more: shown("#more-tools"), order: ["#trust-guide", "#link-check", "#message-check", "#upi-check", "#screenshot-check", "#more-tools", ".stats", ".two", "#road-card"].map(top), stacked: kids.length === 2 && kids[1].top >= kids[0].bottom - 1 };
     });
     check("Elder dashboard: the guide and the four checks come first, technical parts last, in one column", e8Layout.guide && e8Layout.more && e8Layout.order.every((v, i, a) => i === 0 || v > a[i - 1]) && e8Layout.stacked, e8Layout.order.map(Math.round).join(" < "));
-    check("Elder dashboard: the system check and every other feature are still there", (await dash.isVisible("#run-check")) && (await dash.$$eval("#legend li", (l) => l.length)) === 4);
+    check("Elder dashboard: the system check and every other feature are still there", (await dash.isVisible("#run-check")) && (await dash.$$eval("#legend li", (l) => l.length)) === 6);
     await dash.setViewportSize({ width: 1100, height: 900 });
     await dash.screenshot({ path: path.join(SHOTS, "19-elder-dashboard.png"), fullPage: true });
 
@@ -1702,6 +1706,146 @@ const server = http
     const step10Total = (await st10()).scansTotal;
     await d10.close();
 
+    // ---- 7d. Step 11: performance, large inputs, extra OCR conditions, one scale everywhere (new checks)
+    const perf = {};
+    const median = (a) => { const s = a.slice().sort((x, y) => x - y); return s[Math.floor(s.length / 2)]; };
+    const d11 = await ctx.newPage();
+    watch(d11, "dashboard11");
+    const step11Requests = [];
+    d11.on("request", (r) => step11Requests.push(r.url()));
+    await d11.setViewportSize({ width: 1100, height: 900 });
+    let t11 = Date.now();
+    await d11.goto(URL_DASH);
+    await d11.waitForFunction(() => document.getElementById("stat-scans").textContent !== "-" && document.querySelectorAll("#legend li").length > 0);
+    perf.dashboardReadyMs = Date.now() - t11;
+    perf.dashboardDomMs = Math.round(await d11.evaluate(() => performance.getEntriesByType("navigation")[0].domContentLoadedEventEnd));
+    const p11 = await ctx.newPage();
+    t11 = Date.now();
+    await p11.goto(URL_POPUP);
+    await p11.waitForFunction(() => document.getElementById("protection-sub").textContent !== "Loading...");
+    perf.popupReadyMs = Date.now() - t11;
+    await p11.close();
+    perf.extensionStartMs = swReadyMs;
+
+    // scanner round trips, measured from the page (message to the worker, analysis, reply), 15 runs each
+    const timeIt = (msg, n) => d11.evaluate(async ([m, runs]) => {
+      const out = [];
+      for (let i = 0; i < runs; i++) {
+        const s = performance.now();
+        const r = await chrome.runtime.sendMessage(m);
+        out.push(performance.now() - s);
+        if (!r || r.ok !== true) return { error: JSON.stringify(r).slice(0, 120) };
+      }
+      return { times: out };
+    }, [msg, n]);
+    const longMsg = ("Dear customer your KYC expired, share OTP now to avoid block. " + "Normal words about the family dinner and the weather today. ").repeat(80).slice(0, 5000);
+    const timings = {
+      url: await timeIt({ type: "prevenza/check-url", payload: { url: "https://www.paytm.com.refund-help.site/login?next=kyc" } }, 15),
+      message5000: await timeIt({ type: "prevenza/scan-message", payload: { text: longMsg } }, 15),
+      upi: await timeIt({ type: "prevenza/analyze-upi", payload: { upiId: "refund.helpdesk@ybl", name: "Customer Care", amount: "4999", reason: "Pay to receive refund", qrText: "upi://pay?pa=refund.helpdesk@ybl&am=4999" } }, 15),
+      screenshotText20000: await timeIt({ type: "prevenza/analyze-screenshot", payload: { text: (longMsg + longMsg + longMsg + longMsg).slice(0, 20000), confidence: 88 } }, 15),
+    };
+    for (const [k, v] of Object.entries(timings)) perf[k + "MedianMs"] = v.times ? Math.round(median(v.times) * 10) / 10 : "error " + v.error;
+    check("Performance: every scanner answers (median of 15 runs) in under 250 ms, including the largest allowed inputs", Object.values(timings).every((v) => v.times && median(v.times) < 250), JSON.stringify(perf));
+    check("Performance: the dashboard is ready in under 3 seconds and the popup in under 2 seconds", perf.dashboardReadyMs < 3000 && perf.popupReadyMs < 2000, perf.dashboardReadyMs + " / " + perf.popupReadyMs + " ms");
+    check("Performance: the extension's worker started within 10 seconds of the browser launching", swReadyMs < 10000, swReadyMs + " ms");
+
+    // large and oversized input
+    const big = await d11.evaluate(async () => {
+      const send = (m) => chrome.runtime.sendMessage(m);
+      return {
+        msgMax: await send({ type: "prevenza/scan-message", payload: { text: "a".repeat(20000) } }),
+        msgOver: await send({ type: "prevenza/scan-message", payload: { text: "a".repeat(20001) } }),
+        urlOver: await send({ type: "prevenza/check-url", payload: { url: "https://example.com/" + "a".repeat(2100) } }),
+        shotOver: await send({ type: "prevenza/analyze-screenshot", payload: { text: "a".repeat(20001) } }),
+        upiOver: await send({ type: "prevenza/analyze-upi", payload: { reason: "a".repeat(1001) } }),
+      };
+    });
+    check("Large input: the largest allowed message is analysed (only the first 5000 characters) and anything bigger is refused", big.msgMax.ok && big.msgMax.result.truncated === true && big.msgMax.result.analysedLength === 5000 && big.msgOver.error === "bad-payload" && big.urlOver.error === "bad-payload" && big.shotOver.error === "bad-payload" && big.upiOver.error === "bad-payload");
+    await d11.fill("#msg-input", "x".repeat(6000));
+    check("Large input: the message box itself stops at 5000 characters", (await d11.inputValue("#msg-input")).length === 5000);
+    await d11.click("#msg-clear");
+
+    // one scale everywhere: a look-alike the URL analyzer alone calls 'high' but the engine rates Medium
+    await d11.fill("#link-input", "https://paytrn.com/");
+    await d11.click('#link-form button[type="submit"]');
+    await d11.waitForSelector("#link-result .risk-summary");
+    const one = await d11.evaluate(() => ({ pills: [...document.querySelectorAll("#link-result .pill")].map((p) => p.textContent), card: document.querySelector("#link-result .holdy") && document.querySelector("#link-result .holdy").getAttribute("data-level"), cat: document.querySelector("#link-result .risk-summary").getAttribute("data-category") }));
+    check("One scale: the link checker's pill, the summary and Prevy all show the central engine's category", one.pills.length === 2 && one.pills.every((p) => p === one.pills[0]) && one.cat === "MEDIUM" && one.card === "MEDIUM" && one.pills[0] === "Medium risk", JSON.stringify(one));
+    check("One scale: the risk scale lists all six states, each with a label and a shape", JSON.stringify(await d11.$$eval("#legend .pill", (p) => p.map((x) => x.textContent))) === JSON.stringify(["Not scanned yet", "Low risk", "Medium risk", "High risk", "Critical risk", "Inconclusive"]) && (await d11.$$eval("#legend .pill", (p) => p.every((x) => getComputedStyle(x, "::before").content !== "none"))));
+
+    // extra OCR conditions: blurry, low resolution, mixed language, timed, with memory where Chrome reports it
+    const heap = () => d11.evaluate(() => (performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1048576) : null));
+    const makeShot = async (name, lines, o) => {
+      const b64 = await d11.evaluate(async ({ lines, o }) => {
+        const w = o.width || 1000;
+        const c = document.createElement("canvas");
+        c.width = w;
+        c.height = Math.max(60, (o.top || 30) * 2 + lines.length * (o.lineHeight || 64));
+        const g = c.getContext("2d");
+        g.fillStyle = "#fff";
+        g.fillRect(0, 0, c.width, c.height);
+        if (o.blur) g.filter = "blur(" + o.blur + "px)";
+        g.fillStyle = "#111";
+        g.font = o.font || "30px Arial";
+        g.textBaseline = "top";
+        lines.forEach((l, i) => g.fillText(l, o.left || 30, (o.top || 30) + i * (o.lineHeight || 64)));
+        const blob = await new Promise((r) => c.toBlob(r, "image/png"));
+        const buf = new Uint8Array(await blob.arrayBuffer());
+        let s = "";
+        for (let i = 0; i < buf.length; i++) s += String.fromCharCode(buf[i]);
+        return btoa(s);
+      }, { lines, o });
+      const file = path.join(os.tmpdir(), name);
+      fs.writeFileSync(file, Buffer.from(b64, "base64"));
+      return file;
+    };
+    const ocr11 = async (file, language) => {
+      await d11.click("#shot-clear");
+      await d11.setInputFiles("#shot-file", file);
+      await sleep(300);
+      await d11.selectOption("#shot-language", language);
+      const s = Date.now();
+      await d11.click("#shot-analyze");
+      await d11.waitForFunction(() => document.querySelector("#shot-result .risk-summary") || !document.getElementById("shot-problem").hidden, null, { timeout: 120000 });
+      const ms = Date.now() - s;
+      await sleep(200);
+      const out = await d11.evaluate(() => { const b = document.querySelector("#shot-result .risk-summary"); return { cat: b ? b.getAttribute("data-category") : null, text: document.getElementById("shot-text").value, problem: document.getElementById("shot-problem").hidden ? "" : document.getElementById("shot-problem").textContent }; });
+      try { fs.unlinkSync(file); } catch (e) { /* temporary */ }
+      return Object.assign(out, { ms });
+    };
+    const scamLines = ["URGENT: Your bank KYC has expired.", "Share the OTP sent to your phone now", "or your account will be blocked today."];
+    const ocr11ErrorsBefore = errors.length;
+    const heapBefore = await heap();
+    const clear11 = await ocr11(await makeShot("p11-clear.png", scamLines, {}), "eng");
+    perf.ocrClearEnglishMs = clear11.ms;
+    const heapAfter = await heap();
+    await sleep(500);
+    perf.heapMbBeforeOcr = heapBefore;
+    perf.heapMbAfterOcr = heapAfter;
+    perf.ocrWorkersLeft = d11.workers().length;
+    check("OCR (clear English): the scam is found, and reading took under 60 seconds", /^(HIGH|CRITICAL)$/.test(clear11.cat || "") && clear11.ms < 60000, clear11.cat + ", " + clear11.ms + " ms");
+    check("OCR: the reader's worker is shut down after reading (memory is released)", d11.workers().length === 0, "workers: " + d11.workers().length + ", JS heap " + heapBefore + " -> " + heapAfter + " MB");
+    const blurry = await ocr11(await makeShot("p11-blur.png", scamLines, { blur: 1.6 }), "eng");
+    perf.ocrBlurryMs = blurry.ms;
+    check("OCR (blurry): either the warning is still found, or the result is Inconclusive; never a confident Low", blurry.cat !== "LOW", JSON.stringify({ cat: blurry.cat, text: blurry.text.slice(0, 50).replace(/\n/g, " "), problem: blurry.problem.slice(0, 60) }));
+    const tiny = await ocr11(await makeShot("p11-tiny.png", scamLines, { width: 260, font: "9px Arial", lineHeight: 12, top: 6, left: 4 }), "eng");
+    perf.ocrLowResMs = tiny.ms;
+    check("OCR (very low resolution): the result is a warning or Inconclusive, never a confident Low based on garbled text", tiny.cat !== "LOW", JSON.stringify({ cat: tiny.cat, text: tiny.text.slice(0, 50).replace(/\n/g, " "), problem: tiny.problem.slice(0, 60) }));
+    const mixed = await ocr11(await makeShot("p11-mixed.png", ["Dear customer, your KYC is pending.", "\u0905\u092a\u0928\u093e OTP \u0924\u0941\u0930\u0902\u0924 \u092c\u0924\u093e\u090f\u0902", "warna account block ho jayega."], { font: "32px Arial, 'Nirmala UI', sans-serif" }), "hin");
+    perf.ocrMixedMs = mixed.ms;
+    check("OCR (mixed Hindi and English in one image): the text is read and a warning is raised", /^(MEDIUM|HIGH|CRITICAL)$/.test(mixed.cat || ""), JSON.stringify({ cat: mixed.cat, text: mixed.text.slice(0, 70).replace(/\n/g, " ") }));
+    await d11.click("#shot-clear");
+    // Same rule as the Step 6 check: the engine prints harmless "Parameter not found" notices; anything else is a real error.
+    const ocr11Errors = errors.splice(ocr11ErrorsBefore);
+    check("OCR (Step 11 runs): no errors other than the engine's own harmless notices", ocr11Errors.every((e) => /Warning: Parameter not found/.test(e)), ocr11Errors.filter((e) => !/Warning: Parameter not found/.test(e)).slice(0, 2).join(" ; "));
+    console.log("PERF  " + JSON.stringify(perf));
+    check("Step 11 pages made no network requests", step11Requests.every((u) => /^(chrome-extension|data|blob):/.test(u)), step11Requests.filter((u) => !/^(chrome-extension|data|blob):/.test(u)).join(", ") || step11Requests.length + " local requests");
+    const all11 = JSON.stringify(await sw.evaluate(() => chrome.storage.local.get(null)));
+    check("Step 11: nothing from the performance or OCR runs was stored", !/KYC|OTP|paytrn|refund\.helpdesk|aaaaaaaaaa/.test(all11));
+    const finalScanTotal = (await st10()).scansTotal;
+    await d11.close();
+
     // ---- 8. no network from any extension page
     const all = [...popupRequests, ...settingsRequests, ...dashRequests];
     check("extension pages made no network requests", all.every((u) => u.startsWith("chrome-extension://") || u.startsWith("data:")), all.filter((u) => !u.startsWith("chrome-extension://") && !u.startsWith("data:")).join(", ") || all.length + " local requests");
@@ -1742,7 +1886,7 @@ const server = http
       check("after reopening the browser: still only settings, counters and the schema number are stored", Object.keys(JSON.parse(persisted)).every((k) => ["prevenza.schema", "prevenza.settings", "prevenza.stats"].includes(k)));
       // Step 10: the aggregate counts survive a restart, and the dashboard shows them
       const stats2 = JSON.parse(persisted)["prevenza.stats"];
-      check("after reopening the browser (Step 10): the check counts are kept and the dashboard shows them", stats2.scansTotal === step10Total && (await p2.textContent("#stat-scans")) === String(step10Total) && (await p2.textContent("#stat-high")) === String(stats2.scansHigh + stats2.scansCritical), step10Total + " / " + (await p2.textContent("#stat-scans")));
+      check("after reopening the browser (Step 10): the check counts are kept and the dashboard shows them", stats2.scansTotal === finalScanTotal && stats2.scansTotal >= step10Total && (await p2.textContent("#stat-scans")) === String(finalScanTotal) && (await p2.textContent("#stat-high")) === String(stats2.scansHigh + stats2.scansCritical), finalScanTotal + " / " + (await p2.textContent("#stat-scans")));
       check("after reopening the browser (Step 10): no result is remembered (the latest-result pill is not scanned)", /[\u0b80-\u0bff]|Not scanned yet/.test(await p2.textContent("#overall-pill")) && (await p2.textContent("#msg-result")) === "");
     } finally {
       await ctx2.close();

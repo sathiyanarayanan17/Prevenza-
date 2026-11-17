@@ -1,5 +1,5 @@
 /*
- * Prevenza: content script (Step 1 foundation).
+ * Prevenza: content script.
  *
  * PRIVACY CONTRACT (enforced by test/security.test.js):
  *   - reads only location.hostname and location.protocol
