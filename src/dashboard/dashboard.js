@@ -13,7 +13,7 @@
     ["Screenshot reader (offline text reading)", "Ready"],
     ["Prevy warnings that adapt to every check", "Ready"],
     ["Risk score and warning on the page you are visiting", "Planned"],
-    ["Prevy emergency help and safety button", "Planned"],
+    ["Prevy emergency help and safety button", "Ready"],
     ["Whole interface in Hindi and Tamil", "Planned"],
     ["Community scam alerts", "Planned"],
     ["Optional online checks, off by default", "Planned"],

@@ -84,7 +84,7 @@ test("content security policy is strict and blocks network access", () => {
 });
 
 test("extension pages need no inline scripts, inline handlers or inline styles (CSP-safe)", () => {
-  const pages = ["src/popup/popup.html", "src/settings/settings.html", "src/dashboard/dashboard.html"];
+  const pages = ["src/popup/popup.html", "src/settings/settings.html", "src/dashboard/dashboard.html", "src/emergency/emergency.html"];
   for (const rel of pages) {
     const html = fs.readFileSync(path.join(root, rel), "utf8");
     assert.doesNotMatch(html, /<script(?![^>]*\bsrc=)[^>]*>/i, rel + " has an inline script");

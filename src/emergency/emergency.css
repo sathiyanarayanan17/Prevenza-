@@ -1,0 +1,44 @@
+/* Prevenza: Emergency Help page (Step 9). Calm, no animation, no flashing. Uses theme.css and dashboard.css. */
+.emergency > * { min-width: 0; }
+.emergency .card + .card { margin-top: 0; }
+.emg-intro { display: flex; align-items: center; gap: 14px; }
+.emg-intro-text { display: grid; gap: 8px; min-width: 0; }
+.emergency h1 { font-size: clamp(1.4rem, 3vw, 1.9rem); }
+
+.incident-list { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); margin-top: 12px; }
+.incident-btn { justify-content: flex-start; text-align: left; min-width: 0; overflow-wrap: anywhere; }
+/* The chosen situation is shown by a check mark and a heavier border, never by colour alone. */
+.incident-btn::before { content: ""; width: 1.1em; height: 1.1em; flex: none; border: 2px solid currentColor; border-radius: 50%; }
+.incident-btn[aria-pressed="true"] { border: 3px solid var(--blue-soft); background: #0f1d3a; font-weight: 700; }
+.incident-btn[aria-pressed="true"]::before { content: "\2713"; display: inline-grid; place-items: center; font-size: 0.8em; line-height: 1; }
+.problem { color: #fca5a5; margin-top: 10px; font-weight: 600; }
+
+#steps-h { margin: 2px 0 10px; outline-offset: 4px; }
+.steps { margin: 0 0 12px; padding-left: 1.4rem; display: grid; gap: 10px; }
+.steps li { padding-left: 4px; overflow-wrap: anywhere; }
+.step-count { font-weight: 700; color: var(--blue-soft); margin-bottom: 6px; }
+.step-now { font-size: 1.25rem; font-weight: 600; line-height: 1.5; padding: 16px; border: 2px solid var(--line); border-radius: 12px; background: var(--bg); overflow-wrap: anywhere; margin-bottom: 14px; }
+#steps-empty { padding: 0 4px; }
+
+.report-block { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); display: grid; gap: 8px; }
+.portal-address { font-weight: 700; overflow-wrap: anywhere; }
+.helpline-number { font-size: 2rem; font-weight: 800; letter-spacing: 0.08em; }
+.emg-more { margin-top: 16px; }
+.emg-more summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; align-items: center; }
+.emg-more > div { display: grid; gap: 8px; padding-top: 6px; }
+.emg-back { margin-top: 4px; }
+
+/* Elder Mode: one column, larger steps, nothing crowded */
+html[data-elder="true"] .incident-list { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+html[data-elder="true"] .step-now { font-size: 1.3rem; padding: 20px; border-width: 3px; }
+html[data-elder="true"] .helpline-number { font-size: 2.6rem; }
+html[data-elder="true"] .emergency { max-width: 860px; gap: 22px; }
+html[data-elder="true"] .emg-more summary { min-height: 56px; }
+html[data-elder="true"] .emg-back .btn { width: 100%; }
+@media (max-width: 480px) {
+  html[data-elder="true"] .emergency { padding-left: 10px; padding-right: 10px; }
+  html[data-elder="true"] .page-head { padding-left: 10px; padding-right: 10px; }
+  html[data-elder="true"] .step-now { padding: 14px; }
+  .helpline-number { font-size: 1.7rem; }
+  html[data-elder="true"] .helpline-number { font-size: 2.2rem; }
+}

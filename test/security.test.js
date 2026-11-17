@@ -22,7 +22,23 @@ function stripComments(code) {
   return code.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
 }
 
-const sourceFiles = files(SRC, [".js"]).map((f) => ({ rel: path.relative(root, f), code: stripComments(fs.readFileSync(f, "utf8")) }));
+// Step 9 (Emergency Help) needs exactly two things the earlier steps forbade, each allowed in exactly one file:
+//   1. the official reporting portal address, as data in src/shared/emergency.js (the user opens it by choice)
+//   2. navigator.clipboard.writeText(...) in src/emergency/emergency.js, to copy the helpline number when the user presses a button
+// Everything else in those two files is still checked. Any other external address, or any other use of the clipboard, still fails.
+const OFFICIAL_PORTAL = "https://cybercrime.gov.in/";
+const EMERGENCY_DATA = path.join("src", "shared", "emergency.js");
+const EMERGENCY_PAGE = path.join("src", "emergency", "emergency.js");
+function allowStep9(rel, code) {
+  if (rel === EMERGENCY_DATA) return code.split(OFFICIAL_PORTAL).join("");
+  if (rel === EMERGENCY_PAGE) return code.replace(/navigator\.clipboard\.writeText\(/g, "");
+  return code;
+}
+
+const sourceFiles = files(SRC, [".js"]).map((f) => {
+  const rel = path.relative(root, f);
+  return { rel, raw: stripComments(fs.readFileSync(f, "utf8")), code: allowStep9(rel, stripComments(fs.readFileSync(f, "utf8"))) };
+});
 const pageFiles = files(SRC, [".html", ".css"]).map((f) => ({ rel: path.relative(root, f), code: fs.readFileSync(f, "utf8") }));
 const content = sourceFiles.find((f) => f.rel.endsWith(path.join("content", "content.js")));
 
@@ -37,6 +53,19 @@ test("no external URLs in source, pages or styles (only the SVG namespace is all
     assert.doesNotMatch(cleaned, /https?:\/\//i, f.rel + " contains an external URL");
     assert.doesNotMatch(cleaned, /@import|url\(\s*["']?https?:/i, f.rel + " imports remote resources");
   }
+});
+
+test("Step 9: the portal address and the clipboard are allowed in exactly one file each, and nowhere else", () => {
+  const withPortal = sourceFiles.filter((f) => f.raw.includes(OFFICIAL_PORTAL)).map((f) => f.rel);
+  assert.deepEqual(withPortal, [EMERGENCY_DATA]);
+  const urls = sourceFiles.flatMap((f) => (f.raw.match(/https?:\/\/[^\s"'`)]+/g) || []).map((u) => f.rel + " " + u)).filter((u) => !u.includes("w3.org"));
+  assert.deepEqual(urls, [EMERGENCY_DATA + " " + OFFICIAL_PORTAL]);
+  const withClipboard = sourceFiles.filter((f) => /clipboard/i.test(f.raw)).map((f) => f.rel);
+  assert.deepEqual(withClipboard, [EMERGENCY_PAGE]);
+  const page = sourceFiles.find((f) => f.rel === EMERGENCY_PAGE);
+  assert.equal((page.raw.match(/clipboard/gi) || []).length, 1, "only one clipboard call");
+  assert.match(page.raw, /navigator\.clipboard\.writeText\(\s*OFFICIAL\.helplineNumber\s*\)/);
+  assert.doesNotMatch(page.raw, /clipboard\.(read|readText)|execCommand/);
 });
 
 test("no dynamic code execution or unsafe HTML insertion", () => {

@@ -182,6 +182,12 @@ details.why summary { cursor: pointer; font-weight: 600; min-height: 32px; }
 .holdy .btn-row { margin-top: 6px; }
 .holdy[data-repeat="true"] { border-left-style: dashed; }
 
+/* Emergency Help button (Step 9): easy to find, calm, and recognisable by its words and a shape, not only by colour */
+.btn-emergency { border-width: 2px; border-color: var(--warn); background: #2d2209; color: #fde68a; font-weight: 700; }
+.btn-emergency:hover { border-color: #fcd34d; background: #3a2b0b; }
+.btn-emergency::before { content: "+"; display: inline-grid; place-items: center; width: 1.3em; height: 1.3em; border: 2px solid currentColor; border-radius: 50%; font-weight: 800; line-height: 1; }
+html[data-elder="true"] .btn-emergency { color: #ffffff; border-color: #fcd34d; }
+
 /* toast */
 .toast { position: fixed; left: 50%; bottom: 18px; transform: translate(-50%, 20px); background: var(--surface-2); color: var(--text); border: 1px solid var(--blue); padding: 10px 16px; border-radius: 10px; opacity: 0; pointer-events: none; transition: opacity 0.15s, transform 0.15s; z-index: 50; }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }

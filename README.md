@@ -106,6 +106,13 @@ The screenshot checker uses [Tesseract.js](https://github.com/naptha/tesseract.j
 - To rebuild the files after changing the pinned versions: `npm install`, then `npm run ocr:assets`.
 - Limits: blurry, small, rotated or cropped text reads badly. Prevenza shows the text it read so you can correct it, and a poor reading with no warning signs is reported as "Inconclusive", never as safe.
 
+## Emergency Help (Step 9)
+
+- A calm "Emergency Help" button is in the popup and the dashboard header. It opens `src/emergency/emergency.html`.
+- The user picks one of seven situations (money sent, OTP or UPI PIN shared, suspicious link, fake bank or KYC message, digital arrest threat, fake payment screenshot, other) and sees safety steps. Elder Mode shows one simpler step at a time.
+- Reporting guidance for India: the National Cyber Crime Reporting Portal (opened only when the user presses the link) and the cyber financial fraud helpline 1930 (copied only when the user presses the button). Nothing is called, sent or filed by Prevenza.
+- Content lives in `src/shared/emergency.js`. The steps are English only (not reviewed in Hindi or Tamil); the button, page title and the Ask someone you trust guide follow the chosen language.
+- Nothing is stored. No new permission. The portal address and one `clipboard.writeText` call are the only exceptions to the "no external URLs / no clipboard" tests, each allowed in exactly one file.
 ## Tests
 
 ```

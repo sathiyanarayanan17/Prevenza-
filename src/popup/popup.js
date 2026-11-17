@@ -126,6 +126,12 @@
     window.close();
   });
 
+  // Emergency Help lives on its own page for the same reason: a popup closes when it loses focus.
+  $("open-emergency").addEventListener("click", () => {
+    chrome.tabs.create({ url: chrome.runtime.getURL("src/emergency/emergency.html") });
+    window.close();
+  });
+
   // Elder Mode: the guide is information only, and it lives on the dashboard for the same reason as the message checker.
   $("open-trust").addEventListener("click", () => {
     chrome.tabs.create({ url: chrome.runtime.getURL("src/dashboard/dashboard.html#trust-guide") });

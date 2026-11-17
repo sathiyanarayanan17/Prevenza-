@@ -24,6 +24,8 @@
   const en = {
     nav_dashboard: "Dashboard",
     nav_settings: "Settings",
+    emergency_btn: "Emergency Help",
+    emg_back: "Return to dashboard",
     pill_low: "Low risk",
     pill_medium: "Medium risk",
     pill_high: "High risk",
@@ -65,6 +67,8 @@
   const hi = {
     nav_dashboard: "डैशबोर्ड",
     nav_settings: "सेटिंग्स",
+    emergency_btn: "आपातकालीन मदद",
+    emg_back: "डैशबोर्ड पर लौटें",
     pill_low: "कम जोखिम",
     pill_medium: "मध्यम जोखिम",
     pill_high: "ज़्यादा जोखिम",
@@ -103,6 +107,8 @@
   const ta = {
     nav_dashboard: "டாஷ்போர்டு",
     nav_settings: "அமைப்புகள்",
+    emergency_btn: "அவசர உதவி",
+    emg_back: "டாஷ்போர்டுக்குத் திரும்பு",
     pill_low: "குறைந்த ஆபத்து",
     pill_medium: "நடுத்தர ஆபத்து",
     pill_high: "அதிக ஆபத்து",

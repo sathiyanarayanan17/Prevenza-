@@ -8,6 +8,7 @@ const path = require("path");
 const os = require("os");
 const ET = require("../src/shared/elder-text.js");
 const I18N = require("../src/shared/i18n.js");
+const E9 = require("../src/shared/emergency.js");
 
 const EXT = path.join(__dirname, "..");
 const SHOTS = path.join(__dirname, "shots");
@@ -180,7 +181,7 @@ const server = http
     await sleep(500);
     check("dashboard shows the four risk levels", (await dash.$$eval("#legend li", (l) => l.length)) === 4);
     check("dashboard counts the pages watched", parseInt(await dash.textContent("#stat-pages"), 10) >= 1, "pages: " + (await dash.textContent("#stat-pages")));
-    check("dashboard shows planned features honestly (no fake detection)", (await dash.$$eval("#road .chip", (c) => c.filter((x) => x.textContent === "Planned").length)) >= 6);
+    check("dashboard shows planned features honestly (no fake detection)", (await dash.$$eval("#road .chip", (c) => c.filter((x) => x.textContent === "Planned").length)) >= 5);
     await dash.click("#run-check");
     await sleep(1500);
     const checks = await dash.$$eval("#checks li", (l) => l.map((x) => ({ ok: x.className === "ok", t: x.textContent })));
@@ -1066,6 +1067,312 @@ const server = http
     await sleep(700);
     s = (await sw.evaluate(() => chrome.storage.local.get("prevenza.settings")))["prevenza.settings"];
     check("restore defaults resets every setting", s.elderMode === false && s.showAssistantBadge === false && s.mutedSites.length === 0 && s.enabled === true);
+
+    // ---- 7b. Step 9: Emergency Help (new checks, added after the Step 1 to 8 checks)
+    const URL_EMG = `chrome-extension://${id}/src/emergency/emergency.html`;
+    const PORTAL = "https://cybercrime.gov.in/";
+    const step9Requests = [];
+    const portalHits = [];
+    // The test never reaches the real portal: the browser's request for it is answered here with a stand-in page.
+    await ctx.route("https://cybercrime.gov.in/**", (route) => {
+      portalHits.push(route.request().url());
+      route.fulfill({ status: 200, contentType: "text/html", body: "<!doctype html><title>stand-in for the official portal</title><p>stand-in</p>" });
+    });
+    const setPrefs = (p) => dash.evaluate((x) => chrome.runtime.sendMessage({ type: "prevenza/update-settings", payload: { settings: x } }), p);
+    await setPrefs({ elderMode: false, language: "en" });
+    const storageKeysBefore9 = Object.keys(await sw.evaluate(() => chrome.storage.local.get(null))).sort().join(",");
+    const openEmg = async (hash, viewport) => {
+      const p = await ctx.newPage();
+      watch(p, "emergency");
+      p.on("request", (r) => step9Requests.push(r.url()));
+      await p.setViewportSize(viewport || { width: 1100, height: 900 });
+      await p.goto(URL_EMG + (hash || ""));
+      await p.waitForSelector("#incident-list button");
+      await sleep(300);
+      return p;
+    };
+
+    // -- the button, from the popup and from the dashboard
+    const popup9 = await ctx.newPage();
+    watch(popup9, "popup9");
+    popup9.on("request", (r) => step9Requests.push(r.url()));
+    await popup9.setViewportSize({ width: 380, height: 720 });
+    await popup9.goto(URL_POPUP);
+    await popup9.waitForSelector("#open-emergency");
+    await sleep(500);
+    const pb = await popup9.evaluate(() => {
+      const b = document.getElementById("open-emergency");
+      const r = b.getBoundingClientRect();
+      const first = document.querySelector(".actions button");
+      return { name: b.textContent.trim(), h: r.height, w: r.width, desc: document.getElementById(b.getAttribute("aria-describedby")).textContent, firstIsIt: first === b, mascot: !!document.querySelector("[data-mascot] svg, [data-mascot] *") };
+    });
+    check("Emergency button (popup): visible near the top, named 'Emergency Help', at least 44px tall, with a description for screen readers", pb.name === "Emergency Help" && pb.h >= 44 && pb.firstIsIt && /safety steps/.test(pb.desc), JSON.stringify(pb));
+    const [emgFromPopup] = await Promise.all([ctx.waitForEvent("page", { timeout: 10000 }), popup9.click("#open-emergency")]);
+    await emgFromPopup.waitForSelector("#incident-list button");
+    check("Emergency button (popup): opens the Emergency Help page in its own tab", emgFromPopup.url() === URL_EMG, emgFromPopup.url());
+    await emgFromPopup.close();
+
+    const dash9 = await ctx.newPage();
+    watch(dash9, "dash9");
+    dash9.on("request", (r) => step9Requests.push(r.url()));
+    await dash9.setViewportSize({ width: 1100, height: 900 });
+    await dash9.goto(URL_DASH);
+    await dash9.waitForSelector("#legend li");
+    await sleep(400);
+    const db = await dash9.evaluate(() => {
+      const a = document.querySelector(".nav a.btn-emergency");
+      const r = a.getBoundingClientRect();
+      return { name: a.textContent.trim(), h: r.height, top: r.top, href: a.getAttribute("href") };
+    });
+    check("Emergency button (dashboard): in the page header, named 'Emergency Help', at least 44px tall", db.name === "Emergency Help" && db.h >= 44 && db.top < 120 && /emergency\.html$/.test(db.href), JSON.stringify(db));
+    await dash9.click(".nav a.btn-emergency");
+    await dash9.waitForSelector("#incident-list button");
+    check("Emergency button (dashboard): opens the Emergency Help page", dash9.url() === URL_EMG, dash9.url());
+    check("Emergency page: Prevy is there and the heading is 'Emergency Help'", (await dash9.textContent("#emg-h")) === "Emergency Help" && (await dash9.$$eval("[data-mascot] svg", (s) => s.length)) >= 1);
+    await dash9.click(".emg-back a");
+    await dash9.waitForSelector("#legend li");
+    check("Return to dashboard: the button at the bottom goes back to the dashboard", dash9.url() === URL_DASH, dash9.url());
+    await dash9.goBack();
+    await dash9.waitForSelector("#incident-list button");
+    await dash9.click(".page-head a.btn");
+    await dash9.waitForSelector("#legend li");
+    check("Return to dashboard: the button at the top goes back to the dashboard too", dash9.url() === URL_DASH, dash9.url());
+    await dash9.close();
+
+    // -- each incident category shows its own instructions
+    const emg = await openEmg();
+    check("Emergency page: heading, a calm line, and seven situations to choose from, none chosen at first", (await emg.$$eval("#incident-list button", (b) => b.length)) === 7 && (await emg.$$eval("#incident-list [aria-pressed=true]", (b) => b.length)) === 0 && !(await emg.isVisible("#steps-card")) && /Take a breath/.test(await emg.textContent("#emg-calm")) && /Choose what happened/.test(await emg.textContent("#steps-empty")));
+    const EXPECT = {
+      money: [/Stop sending any more money/, /Contact your bank immediately/, /official reporting channel/, /reference numbers/, /guaranteed recovery of your money for an upfront fee/],
+      otp_pin: [/Contact your bank immediately/, /secure your account/, /Change or reset your credentials/, /Never share another OTP or PIN/],
+      link: [/Do not enter any more personal or banking information/, /Close the suspicious page/, /contact the relevant bank or service immediately/, /Do not download unknown files/],
+      fake_kyc: [/Do not tap links/, /Do not share OTPs, PINs, passwords or card details/, /official contact details/],
+      arrest: [/Stay calm/, /Do not transfer money because of threats/, /Do not share OTPs, PINs or personal information/, /Verify the situation independently/, /official authorities and trusted people/],
+      fake_receipt: [/Do not hand over goods or services based only on a screenshot/, /Check your own bank or UPI application/, /actually arrived/],
+      other: [/Pause/, /Verify independently/, /someone you trust/],
+    };
+    for (const inc of E9.INCIDENTS) {
+      await emg.click(`#incident-list [data-incident="${inc.id}"]`);
+      const got = await emg.evaluate(() => ({
+        title: document.getElementById("steps-h").textContent,
+        items: [...document.querySelectorAll("#steps-body ol.steps li")].map((l) => l.textContent),
+        pressed: [...document.querySelectorAll("#incident-list [aria-pressed=true]")].map((b) => b.getAttribute("data-incident")),
+        focus: document.activeElement && document.activeElement.id,
+        visible: !document.getElementById("steps-card").hidden,
+        hash: location.hash,
+      }));
+      check(`Incident '${inc.id}': its own title and every safety step, in order, with only that choice marked`, got.visible && got.title === inc.title && JSON.stringify(got.items) === JSON.stringify(inc.steps) && got.pressed.length === 1 && got.pressed[0] === inc.id && got.hash === "#" + inc.id, got.title);
+      check(`Incident '${inc.id}': the key instructions are there`, EXPECT[inc.id].every((re) => re.test(got.items.join(" "))));
+      check(`Incident '${inc.id}': focus moves to the steps heading`, got.focus === "steps-h");
+    }
+    check("Incident choices: no text box, file picker or contact field anywhere on the page", (await emg.$$eval("input, textarea, select, form", (e) => e.length)) === 0);
+    check("Incident choices: nothing is asked for, and the page says nothing you choose is saved", /Do not type any private details here/.test(await emg.textContent("#pick-help")) && /Nothing you choose is saved/.test(await emg.textContent("#pick-help")));
+    check("Steps: the page says Prevenza cannot freeze accounts, reverse payments or recover money", /cannot freeze accounts, reverse payments or recover money/.test(await emg.textContent("#steps-body")));
+
+    // -- official reporting guidance, the portal link and the helpline copy action
+    const rep = await emg.evaluate(() => {
+      const a = document.getElementById("portal-link");
+      return { href: a.href, target: a.target, rel: a.rel, text: a.textContent, address: document.getElementById("portal-address").textContent, number: document.getElementById("helpline-number").textContent, intro: document.getElementById("report-intro").textContent, bank: document.getElementById("bank-reminder").textContent, links: [...document.querySelectorAll("a[href]")].map((x) => x.getAttribute("href")) };
+    });
+    check("Reporting: names the National Cyber Crime Reporting Portal and shows its address and helpline 1930", rep.href === PORTAL && rep.address === PORTAL && rep.number === "1930" && /National Cyber Crime Reporting Portal/.test(await emg.textContent("#portal-h")) && /Cyber financial fraud helpline/.test(await emg.textContent("#helpline-h")));
+    check("Reporting: says to report as quickly as possible and to contact the bank immediately too", /as quickly as possible/.test(rep.intro) && /bank immediately/.test(rep.intro) && /immediately/.test(rep.bank));
+    check("Reporting: the portal link opens in a new tab with noopener and noreferrer, and is the only web address on the page", rep.target === "_blank" && /noopener/.test(rep.rel) && /noreferrer/.test(rep.rel) && rep.links.filter((h) => /^https?:/.test(h)).join() === PORTAL, rep.links.join(" | "));
+    check("Reporting: the portal is not opened by itself (no request yet, no extra tab)", portalHits.length === 0 && ctx.pages().filter((p) => /cybercrime/.test(p.url())).length === 0);
+    const [portalTab] = await Promise.all([ctx.waitForEvent("page", { timeout: 10000 }), emg.click("#portal-link")]);
+    await portalTab.waitForLoadState("domcontentloaded");
+    check("Reporting: pressing the link opens only the official portal address, in a new tab", portalTab.url() === PORTAL && portalHits.length >= 1 && emg.url().startsWith("chrome-extension://"), portalTab.url());
+    await portalTab.close();
+    let clip = { ok: false, text: "" };
+    try {
+      await ctx.grantPermissions(["clipboard-read", "clipboard-write"]);
+    } catch (e) { /* the page can still write to the clipboard after a click; reading it back is only for this test */ }
+    await emg.evaluate(() => {
+      window.__copied = [];
+      const real = navigator.clipboard.writeText.bind(navigator.clipboard);
+      navigator.clipboard.writeText = (t) => { window.__copied.push(t); return real(t); };
+    });
+    await emg.click("#copy-helpline");
+    await sleep(300);
+    try { clip = { ok: true, text: await emg.evaluate(() => navigator.clipboard.readText()) }; } catch (e) { clip = { ok: false, text: String(e).slice(0, 80) }; }
+    check("Copy helpline: pressing the button asks the browser to copy exactly 1930, once", JSON.stringify(await emg.evaluate(() => window.__copied)) === JSON.stringify(["1930"]));
+    check("Copy helpline: the clipboard really contains exactly 1930", clip.ok && clip.text === "1930", JSON.stringify(clip));
+    check("Copy helpline: a status message confirms it, and says nothing was called or sent", /Copied 1930/.test(await emg.textContent("#copy-status")) && /Nothing was called or sent/.test(await emg.textContent("#copy-status")));
+    // if the clipboard refuses, the number must still be easy to read and the page must say so
+    await emg.evaluate(() => { navigator.clipboard.writeText = () => Promise.reject(new Error("blocked")); });
+    await emg.click("#copy-helpline");
+    await sleep(200);
+    check("Copy helpline: if copying is blocked, the page says so calmly and the number 1930 stays on screen", /Could not copy automatically/.test(await emg.textContent("#copy-status")) && (await emg.textContent("#helpline-number")) === "1930");
+    check("Reporting: no tel:, sms:, mailto: or WhatsApp link, and no call is started", rep.links.every((h) => !/^(tel|sms|mailto|whatsapp|intent):/i.test(h)));
+
+    // -- trust guidance
+    check("Ask someone you trust: shows the exact guidance sentence", (await emg.textContent("#trust-sentence")) === "Pause before taking action. Contact someone you trust using a phone number you already know. Do not use contact details supplied in a suspicious message.");
+    await emg.click("#trust-slot .family > button");
+    check("Ask someone you trust: the button opens the guide, information only (no field, no contact, no link inside)", (await emg.isVisible("#trust-slot .family-panel")) && (await emg.$$eval("#trust-slot .family-panel input, #trust-slot .family-panel textarea, #trust-slot .family-panel a", (e) => e.length)) === 0 && /Do not share your OTP, PIN or password, even with family/.test(await emg.textContent("#trust-slot .family-panel")));
+    await emg.click("#trust-slot .family-panel .btn");
+
+    // -- keyboard
+    await emg.reload();
+    await emg.waitForSelector("#incident-list button");
+    await emg.focus('#incident-list [data-incident="link"]');
+    await emg.keyboard.press("Enter");
+    check("Keyboard: Enter on a situation chooses it and moves focus to the steps", (await emg.evaluate(() => document.activeElement.id)) === "steps-h" && (await emg.textContent("#steps-h")) === "I clicked a suspicious link");
+    await emg.focus('#incident-list [data-incident="money"]');
+    await emg.keyboard.press("Space");
+    check("Keyboard: Space also chooses a situation", (await emg.textContent("#steps-h")) === "I may have sent money to a scammer");
+    await emg.goto("about:blank");
+    await emg.goto(URL_EMG);
+    await emg.waitForSelector("#incident-list button");
+    const tabOrder = [];
+    for (let i = 0; i < 24; i++) {
+      await emg.keyboard.press("Tab");
+      tabOrder.push(await emg.evaluate(() => { const a = document.activeElement; return a ? a.id || (a.getAttribute && a.getAttribute("data-incident")) || (a.closest && a.closest(".family") ? "family" : "") || (a.closest && a.closest(".emg-back") ? "back-bottom" : "") || a.tagName : ""; }));
+    }
+    const orderOk = ["money", "portal-link", "copy-helpline", "family", "back-bottom"].every((k) => tabOrder.includes(k)) && tabOrder.indexOf("money") < tabOrder.indexOf("portal-link") && tabOrder.indexOf("portal-link") < tabOrder.indexOf("copy-helpline") && tabOrder.indexOf("copy-helpline") < tabOrder.indexOf("family");
+    check("Keyboard: Tab reaches the situations, the portal link, the copy button, the trust guide and the return button, in reading order", orderOk, tabOrder.filter((x, i) => x !== tabOrder[i - 1]).join(" > "));
+    await emg.focus("#copy-helpline");
+    await emg.keyboard.press("Enter");
+    await sleep(200);
+    check("Keyboard: Enter on the copy button works", /Copied 1930|Could not copy/.test(await emg.textContent("#copy-status")));
+    const focusRing = await emg.evaluate(() => { document.getElementById("portal-link").focus(); const s = getComputedStyle(document.getElementById("portal-link")); return parseFloat(s.outlineWidth); });
+    check("Keyboard: a visible focus outline is shown on links and buttons", focusRing >= 2, String(focusRing));
+    check("Accessibility: the steps heading, status message and groups are labelled", (await emg.getAttribute("#incident-list", "role")) === "group" && (await emg.getAttribute("#copy-status", "role")) === "status" && (await emg.getAttribute("#pick-msg", "role")) === "status" && !!(await emg.getAttribute("#steps-card", "aria-labelledby")));
+
+    // -- an invalid choice
+    for (const bad of ["#nonsense", "#__proto__", "#MONEY"]) {
+      await emg.goto(URL_EMG + bad);
+      await emg.waitForSelector("#incident-list button");
+      await sleep(200);
+      check(`Invalid choice (${bad}): a calm message, no steps shown, nothing marked, and no crash`, /could not find that choice/.test(await emg.textContent("#pick-msg")) && !(await emg.isVisible("#steps-card")) && (await emg.$$eval("#incident-list [aria-pressed=true]", (b) => b.length)) === 0 && (await emg.isVisible("#incident-list")));
+    }
+    await emg.click('#incident-list [data-incident="arrest"]');
+    check("Invalid choice: choosing a real situation afterwards clears the message and works", !(await emg.isVisible("#pick-msg")) && (await emg.textContent("#steps-h")) === "Someone is threatening me with digital arrest");
+    await emg.goto(URL_EMG + "#fake_receipt");
+    await emg.waitForSelector("#steps-card:not([hidden])");
+    check("Direct link (#fake_receipt): opens straight to that situation", (await emg.textContent("#steps-h")) === "I received a fake payment screenshot");
+    await emg.evaluate(() => { document.getElementById("incident-list").querySelector("button").setAttribute("data-incident", "tampered"); document.getElementById("incident-list").querySelector("button").click(); });
+    check("Invalid choice: a tampered button label cannot select anything unknown (the steps always come from the built-in list)", (await emg.isVisible("#steps-card")) && (await emg.textContent("#steps-h")) === E9.getIncident("money").title && (await emg.evaluate(() => location.hash)) === "#money");
+
+    // -- layout: desktop and mobile, normal mode
+    const overflow9 = (page) => page.evaluate(() => ({ sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth }));
+    await emg.goto(URL_EMG + "#money");
+    await emg.waitForSelector("#steps-card:not([hidden])");
+    for (const vp of [{ width: 1100, height: 900 }, { width: 768, height: 900 }, { width: 390, height: 844 }, { width: 360, height: 800 }]) {
+      await emg.setViewportSize(vp);
+      await sleep(150);
+      const o = await overflow9(emg);
+      const smallest = Math.min(...(await visibleHeights(emg, "#incident-list button, #portal-link, #copy-helpline, .emg-back a")));
+      check(`Layout (normal, ${vp.width}px wide): no sideways scrolling and every button at least 44px tall`, o.sw <= o.cw && smallest >= 44, `${o.sw}/${o.cw}, smallest ${Math.round(smallest)}px`);
+    }
+    await emg.screenshot({ path: path.join(SHOTS, "23-emergency-mobile.png"), fullPage: true });
+    await emg.setViewportSize({ width: 1100, height: 900 });
+    await emg.screenshot({ path: path.join(SHOTS, "22-emergency.png"), fullPage: true });
+    const reduced = await emg.evaluate(() => [...document.querySelectorAll("*")].filter((e) => { const s = getComputedStyle(e); return s.animationName !== "none" || parseFloat(s.animationDuration) > 0; }).length);
+    check("Calm design: no animations anywhere on the page", reduced === 0, String(reduced));
+
+    // -- Elder Mode: larger, one step at a time, simple words
+    await setPrefs({ elderMode: true });
+    await emg.goto(URL_EMG);
+    await emg.waitForSelector("#incident-list button");
+    await sleep(400);
+    const ef = await emg.evaluate(() => ({ attr: document.documentElement.getAttribute("data-elder"), font: parseFloat(getComputedStyle(document.documentElement).fontSize), calm: document.getElementById("emg-calm").textContent, cols: getComputedStyle(document.getElementById("incident-list")).gridTemplateColumns.split(" ").length, detailsOpen: document.getElementById("report-more").open }));
+    check("Elder Mode: large text, a one-column list of situations, simpler calm line, and the extra reporting notes folded away", ef.attr === "true" && ef.font >= 22 && ef.cols === 1 && /go slowly/.test(ef.calm) && ef.detailsOpen === false, JSON.stringify(ef));
+    check("Elder Mode: every button is at least 56px tall", Math.min(...(await visibleHeights(emg, "#incident-list button, #portal-link, #copy-helpline, .emg-back a"))) >= 56);
+    await emg.click('#incident-list [data-incident="money"]');
+    const e1 = await emg.evaluate(() => ({ list: document.querySelectorAll("#steps-body ol.steps").length, count: document.getElementById("step-count").textContent, now: document.getElementById("step-now").textContent, prevHidden: document.getElementById("step-prev").hidden, nextHidden: document.getElementById("step-next").hidden, live: document.getElementById("step-now").getAttribute("aria-live"), size: parseFloat(getComputedStyle(document.getElementById("step-now")).fontSize) }));
+    const elderMoney = E9.getIncident("money").elderSteps;
+    check("Elder Mode: only the first step is shown, with 'Step 1 of 5', announced politely, in large text", e1.list === 0 && e1.count === "Step 1 of 5" && e1.now === elderMoney[0] && e1.prevHidden && !e1.nextHidden && e1.live === "polite" && e1.size >= 24, JSON.stringify(e1));
+    check("Elder Mode: the Next step button is large", Math.min(...(await visibleHeights(emg, "#step-next"))) >= 56);
+    const seen = [e1.now];
+    for (let i = 1; i < elderMoney.length; i++) {
+      await emg.click(await emg.isVisible("#step-next") ? "#step-next" : "#step-now");
+      seen.push(await emg.textContent("#step-now"));
+    }
+    const end = await emg.evaluate(() => ({ count: document.getElementById("step-count").textContent, nextHidden: document.getElementById("step-next").hidden, focus: document.activeElement.id, done: !document.querySelector("#steps-body > p.muted").hidden }));
+    check("Elder Mode: pressing Next walks through every simple step in order, one at a time", JSON.stringify(seen) === JSON.stringify(elderMoney), seen.length + " steps");
+    check("Elder Mode: at the last step Next goes away, a calm 'last step' note appears, and focus stays on the step (not lost)", end.count === "Step 5 of 5" && end.nextHidden && end.focus === "step-now" && end.done, JSON.stringify(end));
+    await emg.click("#step-prev");
+    check("Elder Mode: Previous step goes back", (await emg.textContent("#step-now")) === elderMoney[3] && (await emg.textContent("#step-count")) === "Step 4 of 5");
+    await emg.click('#incident-list [data-incident="arrest"]');
+    check("Elder Mode: choosing another situation starts again at step 1 with that situation's simple steps", (await emg.textContent("#step-count")) === "Step 1 of 5" && (await emg.textContent("#step-now")) === E9.getIncident("arrest").elderSteps[0]);
+    check("Elder Mode: the reporting part is short and plain, with the portal and helpline buttons easy to reach", /report it as soon as you can/.test(await emg.textContent("#report-intro")) && (await emg.isVisible("#portal-link")) && (await emg.isVisible("#copy-helpline")) && (await emg.isVisible("#helpline-number")));
+    for (const vp of [{ width: 390, height: 844 }, { width: 360, height: 800 }]) {
+      await emg.setViewportSize(vp);
+      await sleep(200);
+      const o = await overflow9(emg);
+      const smallest = Math.min(...(await visibleHeights(emg, "#incident-list button, #portal-link, #copy-helpline, .emg-back a, #step-next, #step-prev")));
+      check(`Layout (Elder Mode, ${vp.width}px wide): no sideways scrolling and every button at least 56px tall`, o.sw <= o.cw && smallest >= 56, `${o.sw}/${o.cw}, smallest ${Math.round(smallest)}px`);
+    }
+    await emg.screenshot({ path: path.join(SHOTS, "24-emergency-elder-mobile.png"), fullPage: true });
+    await emg.setViewportSize({ width: 1100, height: 900 });
+    await emg.screenshot({ path: path.join(SHOTS, "25-emergency-elder.png"), fullPage: true });
+    const popupE9 = await ctx.newPage();
+    watch(popupE9, "popupE9");
+    popupE9.on("request", (r) => step9Requests.push(r.url()));
+    await popupE9.setViewportSize({ width: 460, height: 720 });
+    await popupE9.goto(URL_POPUP);
+    await popupE9.waitForSelector("#open-emergency");
+    await sleep(400);
+    const pe = await popupE9.evaluate(() => { const b = document.getElementById("open-emergency"); return { h: b.getBoundingClientRect().height, font: parseFloat(getComputedStyle(b).fontSize), vis: b.getBoundingClientRect().width > 0 }; });
+    check("Elder Mode (popup): the Emergency Help button is shown, large, and at least 56px tall", pe.vis && pe.h >= 56 && pe.font >= 20, JSON.stringify(pe));
+    await popupE9.close();
+    const dashE9 = await ctx.newPage();
+    watch(dashE9, "dashE9");
+    await dashE9.setViewportSize({ width: 1100, height: 900 });
+    await dashE9.goto(URL_DASH);
+    await dashE9.waitForSelector("#legend li");
+    await sleep(400);
+    check("Elder Mode (dashboard): the Emergency Help button is still in the header and at least 56px tall", (await dashE9.isVisible(".nav a.btn-emergency")) && Math.min(...(await visibleHeights(dashE9, ".nav a.btn-emergency"))) >= 56);
+    await dashE9.close();
+
+    // -- languages: the labels follow the chosen language; the safety steps stay English and the page says so
+    await setPrefs({ elderMode: false, language: "hi" });
+    await emg.goto(URL_EMG + "#money");
+    await emg.reload();
+    await emg.waitForSelector("#steps-card:not([hidden])");
+    await sleep(300);
+    check("Language (Hindi): the page title, the return buttons and the note use Hindi", (await emg.textContent("#emg-h")) === I18N.TABLE.hi.emergency_btn && (await emg.$$eval("[data-i18n=emg_back]", (a) => a.every((x) => x.textContent === "डैशबोर्ड पर लौटें"))) && (await emg.getAttribute("html", "lang")) === "hi");
+    check("Language (Hindi): the page is honest that the emergency steps are in English for now", (await emg.isVisible("#emg-lang-note")) && /in English for now/.test(await emg.textContent("#emg-lang-note")) && /Stop sending any more money/.test(await emg.textContent("#steps-body")));
+    await emg.click("#trust-slot .family > button");
+    check("Language (Hindi): the Ask someone you trust guide is in Hindi", /[\u0900-\u097f]/.test(await emg.textContent("#trust-slot .family-panel")) && /[\u0900-\u097f]/.test(await emg.textContent("#trust-slot .family > button")));
+    const popupHi = await ctx.newPage();
+    await popupHi.goto(URL_POPUP);
+    await popupHi.waitForSelector("#open-emergency");
+    await sleep(400);
+    check("Language (Hindi): the Emergency Help button in the popup is in Hindi", (await popupHi.textContent("#open-emergency")).trim() === I18N.TABLE.hi.emergency_btn);
+    await popupHi.close();
+    await setPrefs({ language: "ta" });
+    await emg.reload();
+    await emg.waitForSelector("#incident-list button");
+    await sleep(300);
+    check("Language (Tamil): the page title and return buttons use Tamil, and the English-steps note is shown", (await emg.textContent("#emg-h")) === I18N.TABLE.ta.emergency_btn && /[\u0b80-\u0bff]/.test(await emg.textContent(".emg-back a")) && (await emg.isVisible("#emg-lang-note")));
+    await setPrefs({ language: "en" });
+    await emg.reload();
+    await emg.waitForSelector("#incident-list button");
+    await sleep(300);
+    check("Language (English): everything is back, and the English-only note is not shown", (await emg.textContent("#emg-h")) === "Emergency Help" && !(await emg.isVisible("#emg-lang-note")) && (await emg.textContent(".emg-back a")) === "Return to dashboard");
+
+    // -- the page still works when settings cannot be read
+    const lone = await ctx.newPage();
+    await lone.route(/chrome-extension:\/\/.*\/never/, (r) => r.abort());
+    await lone.addInitScript(() => { try { chrome.runtime.sendMessage = () => Promise.reject(new Error("worker unavailable")); } catch (e) { /* ignore */ } });
+    await lone.goto(URL_EMG + "#otp_pin");
+    await lone.waitForSelector("#steps-card:not([hidden])", { timeout: 8000 }).catch(() => null);
+    check("Resilience: if settings cannot be read, the page still shows the steps and reporting guidance in English", /Contact your bank immediately/.test(await lone.textContent("#steps-body").catch(() => "")) && (await lone.isVisible("#portal-link")), "");
+    await lone.close();
+
+    // -- privacy and permissions
+    const storageAfter9 = await sw.evaluate(() => chrome.storage.local.get(null));
+    const keysAfter9 = Object.keys(storageAfter9).sort().join(",");
+    check("Privacy: after using Emergency Help, storage still has only the settings, counters and schema number", keysAfter9 === storageKeysBefore9 && Object.keys(storageAfter9).every((k) => ["prevenza.schema", "prevenza.settings", "prevenza.stats"].includes(k)), keysAfter9);
+    const blob = JSON.stringify(storageAfter9);
+    check("Privacy: nothing about the chosen situations, the helpline or the portal was stored", !/otp_pin|fake_kyc|fake_receipt|cybercrime|1930|emergency|incident/i.test(blob));
+    check("Privacy: settings keys are unchanged (no new setting was added for Emergency Help)", Object.keys(storageAfter9["prevenza.settings"]).sort().join(",") === "elderMode,enabled,language,mutedSites,sensitivity,showAssistantBadge");
+    const m9 = await sw.evaluate(() => chrome.runtime.getManifest());
+    check("Permissions: still only 'storage', no host permissions and no web-accessible resources", JSON.stringify(m9.permissions) === '["storage"]' && !m9.host_permissions && !m9.web_accessible_resources);
+    check("Network: Emergency Help pages made no network request (the portal is only reached when the user presses its link)", step9Requests.every((u) => u.startsWith("chrome-extension://") || u.startsWith("data:")), step9Requests.filter((u) => !u.startsWith("chrome-extension://") && !u.startsWith("data:")).join(", ") || step9Requests.length + " local requests");
+    check("Network: the only request outside the extension was the user pressing the portal link", portalHits.length >= 1 && portalHits.every((u) => u === PORTAL), portalHits.join(" "));
+    await emg.close();
+    await ctx.unroute("https://cybercrime.gov.in/**");
 
     // ---- 8. no network from any extension page
     const all = [...popupRequests, ...settingsRequests, ...dashRequests];

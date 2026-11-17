@@ -9,3 +9,4 @@ body.popup { width: 360px; max-width: 100%; padding: 14px; }
 .status { min-height: 1.4em; margin-top: 8px; }
 .foot { display: flex; align-items: center; gap: 8px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
 .actions .btn-trust { flex: 1 1 100%; }
+.actions .btn-emergency { flex: 1 1 100%; }
