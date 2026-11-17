@@ -70,15 +70,26 @@
   }
 
   // Stats are counters and timestamps only. No URLs, no page text, no personal data.
+  // Step 10 adds counts of the checks the user asked for, by the risk engine's category. Only the category is ever
+  // counted: never what was checked, never an address, a message, an image, a payment or a name.
+  const SCAN_COUNTERS = Object.freeze({ LOW: "scansLow", MEDIUM: "scansMedium", HIGH: "scansHigh", CRITICAL: "scansCritical", INCONCLUSIVE: "scansInconclusive" });
+
   function sanitizeStats(input) {
     const src = isPlainObject(input) ? input : {};
     return {
       pagesSeen: counter(src.pagesSeen),
       warningsShown: counter(src.warningsShown),
+      scansTotal: counter(src.scansTotal),
+      scansLow: counter(src.scansLow),
+      scansMedium: counter(src.scansMedium),
+      scansHigh: counter(src.scansHigh),
+      scansCritical: counter(src.scansCritical),
+      scansInconclusive: counter(src.scansInconclusive),
       installedAt: isoOrNull(src.installedAt),
       lastActiveAt: isoOrNull(src.lastActiveAt),
+      lastScanAt: isoOrNull(src.lastScanAt),
     };
   }
 
-  return { isPlainObject, normalizeHostname, isMuted, sanitizeSettings, sanitizeStats };
+  return { isPlainObject, normalizeHostname, isMuted, sanitizeSettings, sanitizeStats, SCAN_COUNTERS };
 });

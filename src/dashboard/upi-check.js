@@ -35,7 +35,7 @@
   function render(reply) {
     result.textContent = "";
     if (!reply.ok) {
-      result.appendChild(el("p", "problem", "Prevenza could not check that right now. Please try again."));
+      result.appendChild(el("p", "problem", H.riskResult.problemText(reply)));
       return;
     }
     if (reply.skipped === "protection-off") {
@@ -50,16 +50,9 @@
     }
     const a = r.assessment;
 
-    const verdict = el("div", "verdict");
-    const mascot = el("span");
-    mascot.setAttribute("data-mascot", "40");
-    mascot.setAttribute("aria-hidden", "true");
-    const pill = el("span", "pill");
-    H.ui.setCategoryPill(pill, a.category);
-    verdict.append(mascot, pill);
-    if (typeof a.score === "number") verdict.appendChild(el("span", "score", "Warning level " + a.score + " of 100"));
-    result.appendChild(verdict);
-    result.appendChild(el("p", "muted small", a.scoreMeaning + " Prevenza cannot tell whether a payment is a scam. It can only point out signs worth checking."));
+    // Step 10: the unified summary, shared by every checker.
+    result.appendChild(H.riskResult.render(a, { meaningExtra: "Prevenza cannot tell whether a payment is a scam. It can only point out signs worth checking." }));
+    H.riskResult.record(a);
 
     // Prevy's card (Step 7, shared with every checker). For UPI, "Review" returns you to the form; it never acts on a payment.
     const holdySlot = el("div", "holdy-slot");

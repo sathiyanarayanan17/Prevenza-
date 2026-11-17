@@ -35,6 +35,7 @@
     SCAN_MESSAGE: "prevenza/scan-message", // dashboard -> background: text the user pasted into the message checker
     ANALYZE_UPI: "prevenza/analyze-upi", // dashboard -> background: payment details the user typed into the UPI analyzer
     ANALYZE_SCREENSHOT: "prevenza/analyze-screenshot", // dashboard -> background: text that OCR read from a screenshot the user chose
+    RECORD_SCAN: "prevenza/record-scan", // dashboard -> background: add one to the counter for a risk category (the category only, nothing else)
   });
 
   // The screenshot analyzer accepts only the text that was read (never the image) and the reader's own confidence score.

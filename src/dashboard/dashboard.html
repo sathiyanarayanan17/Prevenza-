@@ -29,8 +29,23 @@
         <h1 id="hero-h" data-i18n="dash_hero">Pause. Let's check first.</h1>
         <p class="muted" id="hero-sub">Loading...</p>
       </div>
-      <span class="pill pill-unknown" id="overall-pill">Not scanned yet</span>
+      <div class="latest">
+        <span class="muted small" id="overall-caption">Latest check on this page</span>
+        <span class="pill pill-unknown" id="overall-pill">Not scanned yet</span>
+      </div>
     </section>
+
+    <nav class="card tools-nav" aria-labelledby="tools-h" id="tools-nav">
+      <h2 id="tools-h" tabindex="-1" data-i18n="dash_tools">What would you like to check?</h2>
+      <p class="muted small">Each check runs on your device. Nothing you check is saved or sent anywhere.</p>
+      <ul class="tool-cards">
+        <li><a class="tool-card" href="#link-check" data-target="link-input"><span class="tool-icon" aria-hidden="true">&#128279;</span><span class="tool-text"><strong data-i18n="nav_link">Check a website</strong><span class="muted small">Paste a link you were sent.</span></span></a></li>
+        <li><a class="tool-card" href="#message-check" data-target="msg-input"><span class="tool-icon" aria-hidden="true">&#128172;</span><span class="tool-text"><strong data-i18n="nav_message">Check a suspicious message</strong><span class="muted small">SMS, WhatsApp or email text.</span></span></a></li>
+        <li><a class="tool-card" href="#upi-check" data-target="upi-id"><span class="tool-icon" aria-hidden="true">&#8377;</span><span class="tool-text"><strong data-i18n="nav_upi">Check a UPI payment request</strong><span class="muted small">Before you pay or approve.</span></span></a></li>
+        <li><a class="tool-card" href="#screenshot-check" data-target="shot-file"><span class="tool-icon" aria-hidden="true">&#128444;</span><span class="tool-text"><strong data-i18n="nav_shot">Scan a screenshot</strong><span class="muted small">A chat or a payment receipt.</span></span></a></li>
+        <li class="tool-emergency"><a class="tool-card tool-card-emergency" href="../emergency/emergency.html"><span class="tool-icon" aria-hidden="true">+</span><span class="tool-text"><strong data-i18n="emergency_btn">Emergency Help</strong><span class="muted small">Think you were scammed? Start here.</span></span></a></li>
+      </ul>
+    </nav>
 
     <section class="card elder-only" aria-labelledby="trust-h" id="trust-guide">
       <h2 id="trust-h" data-i18n="trust_title">Ask someone you trust</h2>
@@ -40,11 +55,23 @@
 
     <h2 class="elder-only" id="more-tools" data-i18n="dash_more">More tools and information</h2>
 
-    <section class="stats" aria-label="Summary">
-      <article class="stat card"><h3>Protection</h3><p class="num" id="stat-protection">-</p><p class="muted small">Master switch</p></article>
-      <article class="stat card"><h3>Pages watched</h3><p class="num" id="stat-pages">0</p><p class="muted small">A simple count. No addresses are saved.</p></article>
-      <article class="stat card"><h3>Warnings shown</h3><p class="num" id="stat-warnings">0</p><p class="muted small">Warning pop-ups arrive in a later step.</p></article>
-      <article class="stat card"><h3>Last active</h3><p class="num small-num" id="stat-last">Never</p><p class="muted small" id="stat-installed"></p></article>
+    <section class="overview" aria-labelledby="overview-h" id="overview">
+      <div class="overview-head">
+        <h2 id="overview-h" data-i18n="dash_overview">Overview</h2>
+        <a class="btn" href="../settings/settings.html#reset-stats" id="overview-reset">Reset statistics in Settings</a>
+      </div>
+      <p class="muted small" id="overview-note">Only counts are kept. Prevenza never saves what you checked: no links, messages, images, UPI IDs, names or amounts.</p>
+      <div class="stats" role="group" aria-label="Summary">
+        <article class="stat card"><h3>Protection</h3><p class="num" id="stat-protection">-</p><p class="muted small">Master switch</p></article>
+        <article class="stat card"><h3>Checks done</h3><p class="num" id="stat-scans">-</p><p class="muted small">Links, messages, payments and screenshots you asked Prevenza to check.</p></article>
+        <article class="stat card stat-warn"><h3><span class="stat-icon" aria-hidden="true">!!</span> High or critical</h3><p class="num" id="stat-high">-</p><p class="muted small">Checks with strong warning signs.</p></article>
+        <article class="stat card"><h3><span class="stat-icon" aria-hidden="true">o</span> Low or medium</h3><p class="num" id="stat-lowmed">-</p><p class="muted small">Low is not a guarantee of safety.</p></article>
+        <article class="stat card"><h3><span class="stat-icon" aria-hidden="true">?</span> Inconclusive</h3><p class="num" id="stat-inconclusive">-</p><p class="muted small">Could not decide. Never counted as safe.</p></article>
+        <article class="stat card"><h3>Last check</h3><p class="num small-num" id="stat-lastscan">-</p><p class="muted small">Only the time is kept.</p></article>
+        <article class="stat card"><h3>Pages watched</h3><p class="num" id="stat-pages">0</p><p class="muted small">A simple count. No addresses are saved.</p></article>
+        <article class="stat card"><h3>Warnings shown</h3><p class="num" id="stat-warnings">0</p><p class="muted small">Warning pop-ups arrive in a later step.</p></article>
+        <article class="stat card"><h3>Last active</h3><p class="num small-num" id="stat-last">Never</p><p class="muted small" id="stat-installed"></p></article>
+      </div>
     </section>
 
     <section class="two">
@@ -73,6 +100,7 @@
         <button class="btn btn-primary" type="submit" data-i18n="btn_check_link">Check link</button>
       </form>
       <div id="link-result" class="link-result" aria-live="polite"></div>
+      <p class="back-row"><a class="back-link" href="#tools-nav" data-i18n="dash_back">Back to the dashboard menu</a></p>
     </section>
 
     <section class="card" aria-labelledby="msg-h" id="message-check">
@@ -90,6 +118,7 @@
         </div>
       </form>
       <div id="msg-result" class="msg-result" aria-live="polite"></div>
+      <p class="back-row"><a class="back-link" href="#tools-nav" data-i18n="dash_back">Back to the dashboard menu</a></p>
     </section>
 
     <section class="card" aria-labelledby="upi-h" id="upi-check">
@@ -124,6 +153,7 @@
         </div>
       </form>
       <div id="upi-result" class="msg-result" aria-live="polite"></div>
+      <p class="back-row"><a class="back-link" href="#tools-nav" data-i18n="dash_back">Back to the dashboard menu</a></p>
     </section>
 
     <section class="card" aria-labelledby="shot-h" id="screenshot-check">
@@ -158,6 +188,7 @@
         <div class="btn-row"><button class="btn" type="button" id="shot-recheck">Check this text again</button></div>
       </div>
       <div id="shot-result" class="msg-result" aria-live="polite"></div>
+      <p class="back-row"><a class="back-link" href="#tools-nav" data-i18n="dash_back">Back to the dashboard menu</a></p>
     </section>
 
     <section class="card" aria-labelledby="road-h" id="road-card">
@@ -181,6 +212,7 @@
   <script src="../shared/family-guide.js"></script>
   <script src="../shared/holdy.js"></script>
   <script src="../shared/holdy-card.js"></script>
+  <script src="../shared/risk-result.js"></script>
   <script src="dashboard.js"></script>
   <script src="message-check.js"></script>
   <script src="upi-check.js"></script>

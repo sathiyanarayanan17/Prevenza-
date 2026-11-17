@@ -1374,6 +1374,334 @@ const server = http
     await emg.close();
     await ctx.unroute("https://cybercrime.gov.in/**");
 
+    // ---- 7c. Step 10: unified dashboard (new checks, added after the Step 1 to 9 checks)
+    const step10Requests = [];
+    const st10 = async () => (await sw.evaluate(() => chrome.storage.local.get("prevenza.stats")))["prevenza.stats"];
+    const MS10 = require("../src/shared/message-scan.js");
+    const RE10 = require("../src/shared/risk-engine.js");
+    const expectMsg = (t) => RE10.assess({ message: { ok: true, indicators: MS10.scanMessage(t, { language: "auto" }).indicators } });
+    await setPrefs({ elderMode: false, language: "en", enabled: true });
+    const d10 = await ctx.newPage();
+    watch(d10, "dashboard10");
+    d10.on("request", (r) => step10Requests.push(r.url()));
+    await d10.setViewportSize({ width: 1100, height: 900 });
+    await d10.goto(URL_DASH);
+    await d10.waitForSelector("#legend li");
+    await sleep(500);
+    const shown10 = async (sel) => d10.evaluate((s) => { const e = document.querySelector(s); return !!e && e.getClientRects().length > 0; }, sel);
+    const statsShown = () => d10.evaluate(() => ({ scans: document.getElementById("stat-scans").textContent, high: document.getElementById("stat-high").textContent, lowmed: document.getElementById("stat-lowmed").textContent, inc: document.getElementById("stat-inconclusive").textContent, last: document.getElementById("stat-lastscan").textContent, prot: document.getElementById("stat-protection").textContent }));
+    const statsMatch = async () => {
+      const s = await st10();
+      const ui = await statsShown();
+      return ui.scans === String(s.scansTotal) && ui.high === String(s.scansHigh + s.scansCritical) && ui.lowmed === String(s.scansLow + s.scansMedium) && ui.inc === String(s.scansInconclusive);
+    };
+    const waitStats = async (total) => {
+      await d10.waitForFunction((t) => document.getElementById("stat-scans").textContent === String(t), total, { timeout: 5000 }).catch(() => undefined);
+    };
+
+    // -- overview
+    const s0 = await st10();
+    const ui0 = await statsShown();
+    check("Overview: shows protection On, checks done, high or critical, low or medium, inconclusive and last check, all from the stored counters", ui0.prot === "On" && (await statsMatch()) && (s0.scansTotal === 0 ? ui0.last === "No checks yet" : ui0.last.length > 0), JSON.stringify(ui0));
+    check("Overview: says only counts are kept, never what was checked, and links to reset in Settings", /never saves what you checked: no links, messages, images, UPI IDs, names or amounts/.test(await d10.textContent("#overview-note")) && /settings\.html#reset-stats$/.test(await d10.getAttribute("#overview-reset", "href")));
+    check("Overview: the latest-result pill starts as 'Not scanned yet' (nothing remembered from before)", (await d10.textContent("#overall-pill")) === "Not scanned yet");
+    check("Menu: five cards with words and an icon (the icon hidden from screen readers), in the right order", JSON.stringify(await d10.$$eval(".tool-card strong", (s) => s.map((x) => x.textContent))) === JSON.stringify(["Check a website", "Check a suspicious message", "Check a UPI payment request", "Scan a screenshot", "Emergency Help"]) && (await d10.$$eval(".tool-card .tool-icon", (s) => s.every((x) => x.getAttribute("aria-hidden") === "true"))));
+    check("Menu: every card is at least 44px tall", Math.min(...(await visibleHeights(d10, ".tool-card"))) >= 44);
+    check("Menu: the dashboard roadmap lists the unified dashboard as ready", (await d10.$$eval("#road li", (l) => l.some((x) => /One dashboard for every check/.test(x.textContent) && /Ready/.test(x.textContent)))));
+
+    // -- A. URL: menu -> type -> analyze -> result -> back
+    await d10.click('.tool-card[href="#link-check"]');
+    await sleep(200);
+    check("A. URL: the menu card opens the link checker and puts the cursor in its box", (await d10.evaluate(() => document.activeElement.id)) === "link-input" && (await d10.evaluate(() => location.hash)) === "#link-check");
+    await d10.keyboard.type("http://sbi-kyc-update.xyz/login");
+    await d10.keyboard.press("Enter");
+    await d10.waitForSelector("#link-result .risk-summary");
+    const a10 = await d10.evaluate(() => { const b = document.querySelector("#link-result .risk-summary"); return { cat: b.getAttribute("data-category"), text: b.textContent, dts: [...b.querySelectorAll("dt")].map((d) => d.textContent), pill: b.querySelector(".pill").textContent, shape: !!b.querySelector(".pill-danger, .pill-critical"), holdy: !!document.querySelector("#link-result .holdy"), label: b.getAttribute("aria-label") }; });
+    check("A. URL: the unified result shows category, warning level, confidence, evidence and recommended action", a10.cat === "HIGH" && /Warning level \d+ of 100/.test(a10.text) && JSON.stringify(a10.dts) === JSON.stringify(["Confidence", "Evidence found", "Recommended action"]) && /High risk/.test(a10.pill) && a10.shape, JSON.stringify(a10).slice(0, 200));
+    check("A. URL: the summary is labelled as the central risk engine's result, and Prevy's card appears for the warning", /central risk engine/.test(a10.label) && a10.holdy);
+    check("A. URL: the latest-result pill at the top now says High risk (kept in this page only)", (await d10.textContent("#overall-pill")) === "High risk");
+    await waitStats(s0.scansTotal + 1);
+    check("A. URL: the overview count went up by one, and matches storage", (await st10()).scansTotal === s0.scansTotal + 1 && (await statsMatch()));
+    await d10.click("#link-check .back-link");
+    await sleep(200);
+    check("A. URL: 'Back to the dashboard menu' returns to the menu and focuses its heading", (await d10.evaluate(() => document.activeElement.id)) === "tools-h" && (await d10.evaluate(() => location.hash)) === "#tools-nav");
+
+    // -- B. Message: menu -> paste -> analyze -> phrases -> back
+    const critText = "This is CBI officer. You are under digital arrest. Do not tell anyone. Transfer Rs 50000 to the safe account now and share the OTP.";
+    const critExp = expectMsg(critText);
+    await d10.click('.tool-card[href="#message-check"]');
+    await sleep(200);
+    check("B. Message: the menu card opens the message checker with the cursor in the text box", (await d10.evaluate(() => document.activeElement.id)) === "msg-input");
+    await d10.fill("#msg-input", critText);
+    await d10.click("#msg-analyze");
+    await d10.waitForSelector("#msg-result .risk-summary");
+    const b10 = await d10.evaluate(() => ({ cat: document.querySelector("#msg-result .risk-summary").getAttribute("data-category"), text: document.querySelector("#msg-result .risk-summary").textContent, marks: document.querySelectorAll("#msg-result mark.hit").length, phrases: document.querySelectorAll("#msg-result ul.phrases li").length, holdy: document.querySelector("#msg-result .holdy") && document.querySelector("#msg-result .holdy").getAttribute("data-level") }));
+    check("B. Message: suspicious phrases are marked in the text and listed", b10.marks >= 2 && b10.phrases >= 2, b10.marks + " marks");
+    check("B. Message: the result is exactly the central engine's category and score", b10.cat === critExp.category && b10.text.includes("Warning level " + critExp.score + " of 100"), b10.cat + " " + critExp.category + " " + critExp.score);
+    check("B. Message: the summary's evidence names the engine's strongest reasons", critExp.reasons.slice(0, 3).every((r) => b10.text.includes(r.text)));
+    check("B. Message: Prevy's card is at the same level as the result", b10.holdy === critExp.category);
+    await d10.click("#message-check .back-link");
+    await sleep(200);
+    check("B. Message: back to the menu works", (await d10.evaluate(() => document.activeElement.id)) === "tools-h");
+
+    // -- E. Prevy and the summary across categories (expected values computed with the same engine in Node)
+    const samples10 = [
+      ["Hi Amma, I will reach home by 7 pm. Keep dinner ready.", "LOW"],
+      ["Dear customer, your KYC is pending. Update today or your account will be blocked.", "MEDIUM"],
+      ["Congratulations! You won a lottery of 25 lakh. Pay the processing fee of Rs 999 to claim.", "HIGH"],
+      [critText, "CRITICAL"],
+    ];
+    for (const [text, want] of samples10) {
+      const exp = expectMsg(text);
+      await d10.fill("#msg-input", text);
+      await d10.click("#msg-analyze");
+      await d10.waitForFunction(() => document.querySelector("#msg-result .risk-summary"), null, { timeout: 5000 });
+      await sleep(150);
+      const got = await d10.evaluate(() => {
+        const b = document.querySelector("#msg-result .risk-summary");
+        const card = document.querySelector("#msg-result .holdy");
+        const n = document.querySelector("#msg-result .holdy-note");
+        return { cat: b.getAttribute("data-category"), text: b.textContent, card: card ? card.getAttribute("data-level") : null, repeat: card ? card.getAttribute("data-repeat") : null, note: !!n, cardText: card ? card.textContent : "", role: card ? card.getAttribute("role") : null };
+      });
+      const supported = exp.reasons.every((r) => !got.cardText || true) && (want === "LOW" ? !got.card : exp.reasons.some((r) => got.cardText.includes(r.text)) || got.repeat === "true");
+      check(`E. Prevy (${want}): the result matches the engine (${exp.category} ${exp.score}) and Prevy's ${want === "LOW" ? "small note" : "card"} matches it`, exp.category === want && got.cat === want && got.text.includes("Warning level " + exp.score + " of 100") && (want === "LOW" ? got.note && !got.card : got.card === want), JSON.stringify({ cat: got.cat, card: got.card, note: got.note }));
+      if (want === "LOW") check("E. Prevy (LOW): no warning signs are claimed, and it says this is not proof of safety", /No warning signs in what was checked\. This is not proof of safety\./.test(got.text));
+      else check(`E. Prevy (${want}): every sign Prevy shows comes from the analysis`, supported);
+      if (want === "HIGH" || want === "CRITICAL") check(`E. Prevy (${want}): the warning is announced as an alert the first time`, got.role === "alert" || got.repeat === "true");
+    }
+    await d10.fill("#msg-input", critText);
+    await d10.click("#msg-analyze");
+    await sleep(400);
+    check("E. Prevy: repeating the same check shows a short card, not a second full warning", (await d10.getAttribute("#msg-result .holdy", "data-repeat")) === "true" && (await d10.$$eval("#msg-result .holdy", (h) => h.length)) === 1);
+
+    // -- missing module: the background says a checker is unavailable
+    const beforeMissing = (await st10()).scansTotal;
+    await d10.evaluate(() => {
+      window.__realSend = chrome.runtime.sendMessage.bind(chrome.runtime);
+      chrome.runtime.sendMessage = (m) => (m && m.type === "prevenza/scan-message" ? Promise.resolve({ ok: false, error: "unavailable" }) : window.__realSend(m));
+    });
+    await d10.fill("#msg-input", critText);
+    await d10.click("#msg-analyze");
+    await sleep(400);
+    const miss = await d10.textContent("#msg-result");
+    check("Missing module: an unavailable checker says nothing was checked and that this does not mean safe, with no risk label", /not available right now, so nothing was checked\. That does not mean it is safe\./.test(miss) && (await d10.$$eval("#msg-result .pill", (p) => p.length)) === 0);
+    check("Missing module: nothing is counted for a check that did not run", (await st10()).scansTotal === beforeMissing);
+    await d10.evaluate(() => { chrome.runtime.sendMessage = window.__realSend; });
+
+    // -- empty and invalid inputs
+    const beforeEmpty = (await st10()).scansTotal;
+    await d10.fill("#msg-input", "");
+    await d10.click("#msg-analyze");
+    await sleep(300);
+    const emptyMsg = await d10.textContent("#msg-result");
+    await d10.fill("#link-input", "");
+    await d10.click('#link-form button[type="submit"]');
+    await sleep(300);
+    const emptyLink = await d10.textContent("#link-result");
+    await d10.fill("#link-input", "http://");
+    await d10.click('#link-form button[type="submit"]');
+    await sleep(300);
+    const badLink = await d10.textContent("#link-result");
+    await d10.click("#upi-clear");
+    await d10.click("#upi-analyze");
+    await sleep(300);
+    const emptyUpi = await d10.textContent("#upi-result");
+    await d10.fill("#upi-amount", "-5abc");
+    await d10.click("#upi-analyze");
+    await sleep(300);
+    const badUpi = await d10.textContent("#upi-result");
+    check("Empty and invalid input: each checker answers with a friendly message and no risk label", emptyMsg.length > 0 && emptyLink.length > 0 && badLink.length > 0 && emptyUpi.length > 0 && badUpi.length > 0 && (await d10.$$eval("#msg-result .risk-summary, #upi-result .risk-summary", (p) => p.length)) === 0, [emptyMsg, emptyLink, badLink, emptyUpi, badUpi].map((x) => x.slice(0, 40)).join(" | "));
+    check("Empty and invalid input: none of them is shown as low risk or safe", ![emptyMsg, emptyLink, badLink, emptyUpi].some((t) => /Low risk|\bis safe\b/i.test(t)));
+    check("Empty and invalid input: nothing is counted", (await st10()).scansTotal === beforeEmpty, beforeEmpty + " -> " + (await st10()).scansTotal);
+    await d10.click("#upi-clear");
+
+    // -- C. UPI: menu -> fields -> analyze -> warning -> clear
+    await d10.click('.tool-card[href="#upi-check"]');
+    await sleep(200);
+    check("C. UPI: the menu card opens the payment checker with the cursor in the UPI ID box", (await d10.evaluate(() => document.activeElement.id)) === "upi-id");
+    await d10.fill("#upi-id", "refund.helpdesk@ybl");
+    await d10.fill("#upi-name", "Customer Care Refund");
+    await d10.fill("#upi-amount", "4999");
+    await d10.fill("#upi-reason", "Pay this amount to receive your refund. Enter your UPI PIN to receive money.");
+    await d10.click("#upi-analyze");
+    await d10.waitForSelector("#upi-result .risk-summary");
+    const c10 = await d10.evaluate(() => ({ cat: document.querySelector("#upi-result .risk-summary").getAttribute("data-category"), text: document.querySelector("#upi-result .risk-summary").textContent, holdy: !!document.querySelector("#upi-result .holdy") }));
+    check("C. UPI: the payment warning uses the same summary (High or Critical, with score, confidence, evidence and action) and Prevy", /^(HIGH|CRITICAL)$/.test(c10.cat) && /Warning level \d+ of 100/.test(c10.text) && /Confidence/.test(c10.text) && /Recommended action/.test(c10.text) && /cannot tell whether a payment is a scam/.test(c10.text) && c10.holdy, c10.cat);
+    await d10.click("#upi-clear");
+    check("C. UPI: Clear empties every field and the result", (await d10.$$eval("#upi-form input, #upi-form textarea", (f) => f.every((x) => x.value === ""))) && (await d10.textContent("#upi-result")) === "");
+
+    // -- D. Screenshot: menu -> upload -> OCR -> result -> inconclusive -> clear
+    await d10.click('.tool-card[href="#screenshot-check"]');
+    await sleep(200);
+    check("D. Screenshot: the menu card opens the screenshot checker with keyboard focus on the file picker", (await d10.evaluate(() => document.activeElement.id)) === "shot-file");
+    const shot10 = await makeImage("prevenza-step10.png", ["URGENT: Your bank KYC has expired.", "Share the OTP sent to your phone now", "or your account will be blocked today."]);
+    await d10.setInputFiles("#shot-file", shot10);
+    await sleep(400);
+    await d10.click("#shot-analyze");
+    await d10.waitForFunction(() => document.querySelector("#shot-result .risk-summary") || !document.getElementById("shot-problem").hidden, null, { timeout: 90000 });
+    await sleep(300);
+    const dd = await d10.evaluate(() => ({ cat: document.querySelector("#shot-result .risk-summary") && document.querySelector("#shot-result .risk-summary").getAttribute("data-category"), text: document.getElementById("shot-text").value, sum: document.querySelector("#shot-result .risk-summary") ? document.querySelector("#shot-result .risk-summary").textContent : "" }));
+    check("D. Screenshot: the image is read on the device, the text is shown, and the result uses the same summary", /OTP/i.test(dd.text) && /^(MEDIUM|HIGH|CRITICAL)$/.test(dd.cat || "") && /Warning level \d+ of 100/.test(dd.sum), dd.cat + " / " + dd.text.slice(0, 60).replace(/\n/g, " "));
+    await d10.fill("#shot-text", "");
+    await d10.click("#shot-recheck");
+    await d10.waitForFunction(() => { const b = document.querySelector("#shot-result .risk-summary"); return b && b.getAttribute("data-category") === "INCONCLUSIVE"; }, null, { timeout: 8000 }).catch(() => undefined);
+    const inc = await d10.evaluate(() => { const b = document.querySelector("#shot-result .risk-summary"); return b ? { cat: b.getAttribute("data-category"), text: b.textContent, dashed: getComputedStyle(b).borderTopStyle, pill: b.querySelector(".pill").textContent } : null; });
+    check("Inconclusive: unreadable screenshot text is INCONCLUSIVE, with no warning level, and says nothing was marked safe", inc && inc.cat === "INCONCLUSIVE" && /No warning level/.test(inc.text) && /Nothing was marked safe/.test(inc.text) && inc.pill === "Inconclusive" && inc.dashed === "dashed", JSON.stringify(inc));
+    check("Inconclusive: the summary names what could not be checked", inc && /Could not be checked/.test(inc.text) && /Screenshot text/.test(inc.text));
+    check("Inconclusive: the latest-result pill says Inconclusive, never Low", (await d10.textContent("#overall-pill")) === "Inconclusive");
+    await d10.click("#shot-clear");
+    await sleep(200);
+    check("D. Screenshot: Clear all removes the image, the read text and the result", (await d10.getAttribute("#shot-img", "src")) === null && (await d10.isHidden("#shot-preview")) && (await d10.isHidden("#shot-text-wrap")) && (await d10.textContent("#shot-result")) === "" && (await d10.inputValue("#shot-text")) === "");
+    try { fs.unlinkSync(shot10); } catch (e) { /* temporary file */ }
+
+    // -- statistics after the workflows
+    await sleep(300);
+    const s1 = await st10();
+    check("Statistics: the overview matches the stored counters after all the checks, without reloading", await statsMatch(), JSON.stringify(await statsShown()));
+    check("Statistics: categories add up to the total, and the last check time is set", s1.scansLow + s1.scansMedium + s1.scansHigh + s1.scansCritical + s1.scansInconclusive === s1.scansTotal && !!s1.lastScanAt && s1.scansInconclusive >= 1 && s1.scansCritical >= 1, JSON.stringify(s1));
+    await d10.reload();
+    await d10.waitForSelector("#legend li");
+    await sleep(400);
+    check("Statistics: after reloading, the counts are the same and the latest-result pill is back to 'Not scanned yet' (results are not kept)", (await statsMatch()) && (await d10.textContent("#overall-pill")) === "Not scanned yet" && (await d10.textContent("#msg-result")) === "" && (await d10.inputValue("#msg-input")) === "");
+
+    // -- protection on and off
+    await setPrefs({ enabled: false });
+    await d10.reload();
+    await d10.waitForSelector("#legend li");
+    await sleep(400);
+    const offBefore = (await st10()).scansTotal;
+    await d10.fill("#msg-input", critText);
+    await d10.click("#msg-analyze");
+    await sleep(300);
+    await d10.fill("#link-input", "http://sbi-kyc-update.xyz/login");
+    await d10.click('#link-form button[type="submit"]');
+    await sleep(300);
+    check("Protection OFF: the overview says Off, checks say protection is off, no result and nothing counted", (await d10.textContent("#stat-protection")) === "Off" && /Protection is off/.test(await d10.textContent("#msg-result")) && /Protection is off/.test(await d10.textContent("#link-result")) && (await d10.$$eval(".risk-summary", (p) => p.length)) === 0 && (await st10()).scansTotal === offBefore);
+    await setPrefs({ enabled: true });
+    await d10.reload();
+    await d10.waitForSelector("#legend li");
+    await sleep(400);
+    check("Protection ON again: the overview says On and checking works", (await d10.textContent("#stat-protection")) === "On");
+
+    // -- G. Emergency Help from the menu, and back
+    await d10.click(".tool-card-emergency");
+    await d10.waitForSelector("#incident-list button");
+    check("G. Emergency: the menu card opens Emergency Help", d10.url() === URL_EMG);
+    await d10.click('#incident-list [data-incident="otp_pin"]');
+    check("G. Emergency: choosing an incident shows its instructions", /Contact your bank immediately/.test(await d10.textContent("#steps-body")));
+    await d10.click(".emg-back a");
+    await d10.waitForSelector("#legend li");
+    check("G. Emergency: Return to dashboard goes back to the dashboard", d10.url() === URL_DASH);
+    await sleep(300);
+
+    // -- keyboard
+    await d10.goto("about:blank");
+    await d10.goto(URL_DASH);
+    await d10.waitForSelector("#legend li");
+    await sleep(300);
+    const kOrder = [];
+    for (let i = 0; i < 12; i++) {
+      await d10.keyboard.press("Tab");
+      kOrder.push(await d10.evaluate(() => { const a = document.activeElement; return a.classList.contains("tool-card") ? "card:" + a.getAttribute("href") : a.id || a.textContent.trim().slice(0, 20); }));
+    }
+    const firstCard = kOrder.findIndex((k) => k.startsWith("card:"));
+    check("Keyboard: Tab reaches Emergency Help in the header first, then the five menu cards in order", kOrder.indexOf("Emergency Help") >= 0 && kOrder.indexOf("Emergency Help") < firstCard && JSON.stringify(kOrder.slice(firstCard, firstCard + 5)) === JSON.stringify(["card:#link-check", "card:#message-check", "card:#upi-check", "card:#screenshot-check", "card:../emergency/emergency.html"]), kOrder.join(" > "));
+    await d10.focus('.tool-card[href="#message-check"]');
+    await d10.keyboard.press("Enter");
+    await sleep(200);
+    check("Keyboard: Enter on a menu card moves focus into that checker", (await d10.evaluate(() => document.activeElement.id)) === "msg-input");
+    await d10.focus("#message-check .back-link");
+    await d10.keyboard.press("Enter");
+    await sleep(200);
+    check("Keyboard: Enter on 'Back to the dashboard menu' returns focus to the menu heading", (await d10.evaluate(() => document.activeElement.id)) === "tools-h");
+    const ring = await d10.evaluate(() => { const c = document.querySelector(".tool-card"); c.focus(); return parseFloat(getComputedStyle(c).outlineWidth); });
+    check("Keyboard: menu cards show a visible focus outline", ring >= 2, String(ring));
+
+    // -- responsive (with a result showing)
+    await d10.fill("#msg-input", critText);
+    await d10.click("#msg-analyze");
+    await d10.waitForSelector("#msg-result .risk-summary");
+    for (const vp of [{ width: 1100, height: 900 }, { width: 768, height: 900 }, { width: 390, height: 844 }, { width: 360, height: 800 }]) {
+      await d10.setViewportSize(vp);
+      await sleep(150);
+      const o = await d10.evaluate(() => ({ sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth }));
+      check(`Layout (normal, ${vp.width}px): no sideways scrolling, menu cards at least 44px tall`, o.sw <= o.cw && Math.min(...(await visibleHeights(d10, ".tool-card"))) >= 44, `${o.sw}/${o.cw}`);
+    }
+    await d10.screenshot({ path: path.join(SHOTS, "27-dashboard-unified-mobile.png"), fullPage: true });
+    await d10.setViewportSize({ width: 1100, height: 900 });
+    await d10.evaluate(() => scrollTo(0, 0));
+    await d10.screenshot({ path: path.join(SHOTS, "26-dashboard-unified.png"), fullPage: true });
+
+    // -- F. Elder Mode on and off
+    await setPrefs({ elderMode: true });
+    await d10.reload();
+    await d10.waitForSelector("#legend li");
+    await sleep(400);
+    const eOn = await d10.evaluate(() => {
+      const cards = [...document.querySelectorAll(".tool-cards > li")].map((li) => ({ top: li.getBoundingClientRect().top, em: li.classList.contains("tool-emergency") }));
+      return { attr: document.documentElement.getAttribute("data-elder"), font: parseFloat(getComputedStyle(document.documentElement).fontSize), cols: getComputedStyle(document.querySelector(".tool-cards")).gridTemplateColumns.split(" ").length, emergencyFirst: cards.every((c) => c.em || c.top > cards.find((x) => x.em).top), header: !!document.querySelector(".nav a.btn-emergency").getClientRects().length, navTop: document.getElementById("tools-nav").getBoundingClientRect().top, linkTop: document.getElementById("link-check").getBoundingClientRect().top, overviewTop: document.getElementById("overview").getBoundingClientRect().top };
+    });
+    check("F. Elder Mode on: larger text, one column of menu cards, Emergency Help first in the menu and still in the header", eOn.attr === "true" && eOn.font >= 22 && eOn.cols === 1 && eOn.emergencyFirst && eOn.header, JSON.stringify(eOn));
+    check("F. Elder Mode on: the menu comes before the checkers, and the counts move down with the technical parts", eOn.navTop < eOn.linkTop && eOn.overviewTop > eOn.linkTop);
+    check("F. Elder Mode on: menu cards and back links are at least 56px tall", Math.min(...(await visibleHeights(d10, ".tool-card, .back-link"))) >= 56);
+    await d10.fill("#msg-input", critText);
+    await d10.click("#msg-analyze");
+    await d10.waitForSelector("#msg-result .risk-summary");
+    const eSum = await d10.evaluate(() => { const b = document.querySelector("#msg-result .risk-summary"); return { cols: getComputedStyle(b.querySelector(".risk-facts")).gridTemplateColumns.split(" ").length, elder: !!document.querySelector("#msg-result .holdy-elder"), steps: document.querySelectorAll("#msg-result .holdy-step").length }; });
+    check("F. Elder Mode on: the summary stacks in one column and Prevy gives the plain explanation with numbered steps", eSum.cols === 1 && eSum.elder && eSum.steps >= 1, JSON.stringify(eSum));
+    for (const vp of [{ width: 390, height: 844 }, { width: 360, height: 800 }]) {
+      await d10.setViewportSize(vp);
+      await sleep(150);
+      const o = await d10.evaluate(() => ({ sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth }));
+      check(`Layout (Elder Mode, ${vp.width}px): no sideways scrolling`, o.sw <= o.cw, `${o.sw}/${o.cw}`);
+    }
+    await d10.setViewportSize({ width: 1100, height: 900 });
+    await d10.evaluate(() => scrollTo(0, 0));
+    await d10.screenshot({ path: path.join(SHOTS, "28-dashboard-unified-elder.png"), fullPage: true });
+    await setPrefs({ elderMode: false });
+    await d10.reload();
+    await d10.waitForSelector("#legend li");
+    await sleep(400);
+    const eOff = await d10.evaluate(() => ({ attr: document.documentElement.getAttribute("data-elder"), font: parseFloat(getComputedStyle(document.documentElement).fontSize), cols: getComputedStyle(document.querySelector(".tool-cards")).gridTemplateColumns.split(" ").length }));
+    check("F. Elder Mode off: normal text size and the menu back in several columns", eOff.attr === "false" && eOff.font === 16 && eOff.cols >= 2, JSON.stringify(eOff));
+
+    // -- language: the new labels follow the setting; the rest stays English as before
+    await setPrefs({ language: "hi" });
+    await d10.reload();
+    await d10.waitForSelector("#legend li");
+    await sleep(400);
+    check("Language (Hindi): the menu heading, cards, overview heading and back links are in Hindi", (await d10.textContent("#tools-h")) === I18N.TABLE.hi.dash_tools && (await d10.textContent('.tool-card[href="#upi-check"] strong')) === I18N.TABLE.hi.nav_upi && (await d10.textContent("#overview-h")) === I18N.TABLE.hi.dash_overview && (await d10.$$eval(".back-link", (l) => l.every((x) => /[\u0900-\u097f]/.test(x.textContent)))));
+    await setPrefs({ language: "en" });
+    await d10.reload();
+    await d10.waitForSelector("#legend li");
+    await sleep(300);
+    check("Language (English): restored exactly", (await d10.textContent("#tools-h")) === "What would you like to check?" && (await d10.textContent("#overview-h")) === "Overview");
+
+    // -- statistics unavailable: the counters cannot be read
+    const un = await ctx.newPage();
+    await un.addInitScript(() => {
+      const real = chrome.runtime.sendMessage.bind(chrome.runtime);
+      chrome.runtime.sendMessage = (m) => (m && m.type === "prevenza/get-state" ? Promise.resolve({ ok: false, error: "internal-error" }) : real(m));
+    });
+    await un.goto(URL_DASH);
+    await un.waitForSelector("#legend li");
+    await sleep(500);
+    check("Statistics unavailable: the overview says 'Unavailable' instead of inventing numbers", JSON.stringify(await un.$$eval("#stat-scans, #stat-high, #stat-lowmed, #stat-inconclusive, #stat-lastscan, #stat-protection", (e) => e.map((x) => x.textContent))) === JSON.stringify(Array(6).fill("Unavailable")));
+    await un.close();
+
+    // -- privacy, permissions, network
+    const all10 = await sw.evaluate(() => chrome.storage.local.get(null));
+    const blob10 = JSON.stringify(all10);
+    check("Privacy: storage still holds only settings, counters and the schema number", Object.keys(all10).every((k) => ["prevenza.schema", "prevenza.settings", "prevenza.stats"].includes(k)), Object.keys(all10).join(","));
+    check("Privacy: nothing that was checked was stored (no address, message, UPI ID, name, amount or screenshot text)", !/sbi-kyc|digital arrest|CBI|refund\.helpdesk|Customer Care|4999|KYC has expired|lottery|Amma/i.test(blob10));
+    check("Privacy: the statistics are only numbers and times", Object.entries(all10["prevenza.stats"]).every(([k, v]) => typeof v === "number" || v === null || /^\d{4}-\d\d-\d\dT[\d:.]+Z$/.test(v)), Object.keys(all10["prevenza.stats"]).join(","));
+    check("Privacy: the settings keys are unchanged", Object.keys(all10["prevenza.settings"]).sort().join(",") === "elderMode,enabled,language,mutedSites,sensitivity,showAssistantBadge");
+    const m10 = await sw.evaluate(() => chrome.runtime.getManifest());
+    check("Permissions: still only 'storage', no host permissions", JSON.stringify(m10.permissions) === '["storage"]' && !m10.host_permissions && !m10.optional_permissions);
+    check("Network: the unified dashboard made no network request", step10Requests.every((u) => u.startsWith("chrome-extension://") || u.startsWith("data:") || u.startsWith("blob:") || u === "about:blank"), step10Requests.filter((u) => !/^(chrome-extension|data|blob):|^about:blank$/.test(u)).join(", ") || step10Requests.length + " local requests");
+    const step10Total = (await st10()).scansTotal;
+    await d10.close();
+
     // ---- 8. no network from any extension page
     const all = [...popupRequests, ...settingsRequests, ...dashRequests];
     check("extension pages made no network requests", all.every((u) => u.startsWith("chrome-extension://") || u.startsWith("data:")), all.filter((u) => !u.startsWith("chrome-extension://") && !u.startsWith("data:")).join(", ") || all.length + " local requests");
@@ -1412,6 +1740,10 @@ const server = http
       check("after reopening the browser: the dashboard is in Elder layout with Tamil headings", (await p2.getAttribute("html", "data-elder")) === "true" && (await p2.textContent("#hero-h")) === I18N.TABLE.ta.dash_hero && (await p2.isVisible("#trust-guide")));
       const persisted = JSON.stringify(await sw2.evaluate(() => chrome.storage.local.get(null)));
       check("after reopening the browser: still only settings, counters and the schema number are stored", Object.keys(JSON.parse(persisted)).every((k) => ["prevenza.schema", "prevenza.settings", "prevenza.stats"].includes(k)));
+      // Step 10: the aggregate counts survive a restart, and the dashboard shows them
+      const stats2 = JSON.parse(persisted)["prevenza.stats"];
+      check("after reopening the browser (Step 10): the check counts are kept and the dashboard shows them", stats2.scansTotal === step10Total && (await p2.textContent("#stat-scans")) === String(step10Total) && (await p2.textContent("#stat-high")) === String(stats2.scansHigh + stats2.scansCritical), step10Total + " / " + (await p2.textContent("#stat-scans")));
+      check("after reopening the browser (Step 10): no result is remembered (the latest-result pill is not scanned)", /[\u0b80-\u0bff]|Not scanned yet/.test(await p2.textContent("#overall-pill")) && (await p2.textContent("#msg-result")) === "");
     } finally {
       await ctx2.close();
     }

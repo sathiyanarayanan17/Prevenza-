@@ -63,6 +63,24 @@
       });
     }
 
+    /**
+     * Count one check the user asked for. Only the risk category is used (LOW, MEDIUM, HIGH, CRITICAL, INCONCLUSIVE), plus
+     * a total and the time. Anything else (including "not scanned") is ignored. Nothing about the content is received.
+     */
+    function recordScan(category) {
+      return enqueue(async () => {
+        const field = H.SCAN_COUNTERS[category];
+        const stats = await getStats();
+        if (!field || !Object.prototype.hasOwnProperty.call(H.SCAN_COUNTERS, category)) return stats;
+        stats.scansTotal += 1;
+        stats[field] += 1;
+        stats.lastScanAt = clock();
+        const next = H.sanitizeStats(stats);
+        await area.set({ [K.stats]: next });
+        return next;
+      });
+    }
+
     /** First run: write defaults if nothing is stored yet. */
     function init() {
       return enqueue(async () => {
@@ -102,7 +120,7 @@
       });
     }
 
-    return { getSettings, getStats, saveSettings, recordPageSeen, init, resetStats, resetSettings, selfTest };
+    return { getSettings, getStats, saveSettings, recordPageSeen, recordScan, init, resetStats, resetSettings, selfTest };
   }
 
   return { createStore };

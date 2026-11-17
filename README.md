@@ -113,6 +113,12 @@ The screenshot checker uses [Tesseract.js](https://github.com/naptha/tesseract.j
 - Reporting guidance for India: the National Cyber Crime Reporting Portal (opened only when the user presses the link) and the cyber financial fraud helpline 1930 (copied only when the user presses the button). Nothing is called, sent or filed by Prevenza.
 - Content lives in `src/shared/emergency.js`. The steps are English only (not reviewed in Hindi or Tamil); the button, page title and the Ask someone you trust guide follow the chosen language.
 - Nothing is stored. No new permission. The portal address and one `clipboard.writeText` call are the only exceptions to the "no external URLs / no clipboard" tests, each allowed in exactly one file.
+## Unified dashboard (Step 10)
+
+- The dashboard has a menu (website, message, UPI payment, screenshot, Emergency Help) that jumps to the existing checkers and puts the cursor in their first field. Each checker ends with "Back to the dashboard menu".
+- `src/shared/risk-result.js` is one result summary used by every checker: category (word and shape), warning level, confidence, evidence found, recommended action, and what could not be checked. It only describes the central risk engine's assessment; it has no thresholds of its own.
+- The overview shows aggregate counts: checks done, high or critical, low or medium, inconclusive, and the time of the last check. After a check, the page sends `prevenza/record-scan` with the risk category only. The checks themselves still never write to storage. Counts reset with "Reset statistics" in Settings.
+- Nothing that was checked is stored. The "latest check" pill lives in the page's memory only.
 ## Tests
 
 ```

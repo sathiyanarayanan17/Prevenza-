@@ -22,6 +22,13 @@
   "use strict";
 
   const en = {
+    dash_tools: "What would you like to check?",
+    nav_link: "Check a website",
+    nav_message: "Check a suspicious message",
+    nav_upi: "Check a UPI payment request",
+    nav_shot: "Scan a screenshot",
+    dash_overview: "Overview",
+    dash_back: "Back to the dashboard menu",
     nav_dashboard: "Dashboard",
     nav_settings: "Settings",
     emergency_btn: "Emergency Help",
@@ -65,6 +72,13 @@
   };
 
   const hi = {
+    dash_tools: "आप क्या जाँचना चाहेंगे?",
+    nav_link: "वेबसाइट जाँचें",
+    nav_message: "संदिग्ध संदेश जाँचें",
+    nav_upi: "UPI भुगतान अनुरोध जाँचें",
+    nav_shot: "स्क्रीनशॉट जाँचें",
+    dash_overview: "सारांश",
+    dash_back: "डैशबोर्ड मेनू पर वापस जाएँ",
     nav_dashboard: "डैशबोर्ड",
     nav_settings: "सेटिंग्स",
     emergency_btn: "आपातकालीन मदद",
@@ -105,6 +119,13 @@
   };
 
   const ta = {
+    dash_tools: "நீங்கள் எதைச் சரிபார்க்க விரும்புகிறீர்கள்?",
+    nav_link: "இணையதளத்தைச் சரிபார்க்கவும்",
+    nav_message: "சந்தேகமான செய்தியைச் சரிபார்க்கவும்",
+    nav_upi: "UPI பணக் கோரிக்கையைச் சரிபார்க்கவும்",
+    nav_shot: "ஸ்கிரீன்ஷாட்டைச் சரிபார்க்கவும்",
+    dash_overview: "சுருக்கம்",
+    dash_back: "டாஷ்போர்டு பட்டியலுக்குத் திரும்பு",
     nav_dashboard: "டாஷ்போர்டு",
     nav_settings: "அமைப்புகள்",
     emergency_btn: "அவசர உதவி",

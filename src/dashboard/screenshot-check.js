@@ -206,7 +206,7 @@
     const out = el.result;
     out.textContent = "";
     if (!reply.ok) {
-      out.appendChild(node("p", "problem", "Prevenza could not check that right now. Please try again."));
+      out.appendChild(node("p", "problem", H.riskResult.problemText(reply)));
       return;
     }
     if (reply.skipped === "protection-off") {
@@ -220,16 +220,9 @@
     }
     const a = r.assessment;
 
-    const verdict = node("div", "verdict");
-    const mascot = node("span");
-    mascot.setAttribute("data-mascot", "40");
-    mascot.setAttribute("aria-hidden", "true");
-    const pill = node("span", "pill");
-    H.ui.setCategoryPill(pill, a.category);
-    verdict.append(mascot, pill);
-    if (typeof a.score === "number") verdict.appendChild(node("span", "score", "Warning level " + a.score + " of 100"));
-    out.appendChild(verdict);
-    if (typeof a.score === "number") out.appendChild(node("p", "muted small", a.scoreMeaning));
+    // Step 10: the unified summary, shared by every checker. An unreadable image is INCONCLUSIVE, never safe.
+    out.appendChild(H.riskResult.render(a));
+    H.riskResult.record(a);
 
     if (r.quality.message) out.appendChild(node("p", r.quality.level === "none" || r.quality.level === "poor" ? "problem" : "muted small", r.quality.message));
     // Prevy's card or note (Step 7). For an unreadable image it explains that nothing could be decided.

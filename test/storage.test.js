@@ -63,7 +63,7 @@ test("isMuted matches the site and its subdomains only", () => {
 
 test("sanitizeStats only keeps counters and timestamps", () => {
   const out = S.sanitizeStats({ pagesSeen: 5, warningsShown: -3, installedAt: "2026-01-02T03:04:05Z", lastActiveAt: "garbage", url: "https://secret.example/", text: "hello" });
-  assert.deepEqual(Object.keys(out).sort(), ["installedAt", "lastActiveAt", "pagesSeen", "warningsShown"]);
+  assert.deepEqual(Object.keys(out).sort(), ["installedAt", "lastActiveAt", "lastScanAt", "pagesSeen", "scansCritical", "scansHigh", "scansInconclusive", "scansLow", "scansMedium", "scansTotal", "warningsShown"]);
   assert.equal(out.pagesSeen, 5);
   assert.equal(out.warningsShown, 0);
   assert.equal(out.installedAt, "2026-01-02T03:04:05.000Z");
@@ -140,7 +140,7 @@ test("recordPageSeen stores a count and a time, nothing else", async () => {
   const area = createFakeArea();
   const store = createStore(area, () => "2026-02-02T00:00:00.000Z");
   await store.recordPageSeen();
-  assert.deepEqual(Object.keys(area.data[C.STORAGE_KEYS.stats]).sort(), ["installedAt", "lastActiveAt", "pagesSeen", "warningsShown"]);
+  assert.deepEqual(Object.keys(area.data[C.STORAGE_KEYS.stats]).sort(), ["installedAt", "lastActiveAt", "lastScanAt", "pagesSeen", "scansCritical", "scansHigh", "scansInconclusive", "scansLow", "scansMedium", "scansTotal", "warningsShown"]);
   assert.equal(area.data[C.STORAGE_KEYS.stats].lastActiveAt, "2026-02-02T00:00:00.000Z");
 });
 

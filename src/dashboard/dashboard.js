@@ -12,6 +12,7 @@
     ["UPI payment analyzer", "Ready"],
     ["Screenshot reader (offline text reading)", "Ready"],
     ["Prevy warnings that adapt to every check", "Ready"],
+    ["One dashboard for every check, with privacy-safe counts", "Ready"],
     ["Risk score and warning on the page you are visiting", "Planned"],
     ["Prevy emergency help and safety button", "Ready"],
     ["Whole interface in Hindi and Tamil", "Planned"],
@@ -59,10 +60,27 @@
     H.familyGuide.render($("trust-slot"), language, { noTitle: true, open: location.hash === "#trust-guide" });
   }
 
+  // Step 10: the overview counts. Numbers only, from the aggregate counters. If they cannot be read, say so.
+  function renderCounts(stats) {
+    const ids = ["stat-scans", "stat-high", "stat-lowmed", "stat-inconclusive", "stat-lastscan"];
+    if (!stats || typeof stats.scansTotal !== "number") {
+      ids.forEach((id) => {
+        $(id).textContent = "Unavailable";
+      });
+      return;
+    }
+    $("stat-scans").textContent = String(stats.scansTotal);
+    $("stat-high").textContent = String(stats.scansHigh + stats.scansCritical);
+    $("stat-lowmed").textContent = String(stats.scansLow + stats.scansMedium);
+    $("stat-inconclusive").textContent = String(stats.scansInconclusive);
+    $("stat-lastscan").textContent = stats.lastScanAt ? H.ui.formatDate(stats.lastScanAt) : "No checks yet";
+  }
+
   function renderState(state) {
     const { settings, stats } = state;
     H.ui.applyPrefs(settings);
     renderTrust(settings.language);
+    renderCounts(stats);
     $("stat-protection").textContent = settings.enabled ? "On" : "Off";
     $("stat-pages").textContent = String(stats.pagesSeen);
     $("stat-warnings").textContent = String(stats.warningsShown);
@@ -117,8 +135,34 @@
       renderState(state);
     } else {
       $("hero-sub").textContent = "Prevenza could not load its data. Try reloading the extension.";
+      $("stat-protection").textContent = "Unavailable";
+      renderCounts(null);
     }
   }
+
+  // ---- Step 10: the latest result on this page (kept in this page's memory only), and fresh counts after each check.
+  document.addEventListener("prevenza:checked", (event) => {
+    const category = event.detail && event.detail.category;
+    H.ui.setCategoryPill($("overall-pill"), category);
+  });
+  document.addEventListener("prevenza:stats", async (event) => {
+    if (event.detail && event.detail.stats) return renderCounts(event.detail.stats);
+    const state = await H.messaging.send({ type: MSG.GET_STATE });
+    if (state.ok) renderCounts(state.stats);
+  });
+
+  // ---- Step 10: the menu cards. Each one goes to the existing checker and puts the keyboard focus in its first field.
+  function focusTool(hash) {
+    const card = document.querySelector('.tool-card[href="' + hash + '"]');
+    const target = card && $(card.getAttribute("data-target"));
+    if (target) target.focus();
+  }
+  document.querySelectorAll(".tool-card[data-target]").forEach((card) => {
+    card.addEventListener("click", () => setTimeout(() => focusTool(card.getAttribute("href")), 0));
+  });
+  document.querySelectorAll(".back-link").forEach((link) => {
+    link.addEventListener("click", () => setTimeout(() => $("tools-h").focus(), 0));
+  });
 
   // ---- link checker: the user pastes an address. It is analysed in memory and never stored.
   function paragraph(text, className) {
@@ -132,7 +176,7 @@
     const box = $("link-result");
     box.textContent = "";
     if (!reply.ok) {
-      box.appendChild(paragraph("Prevenza could not check that right now. Please try again.", "problem"));
+      box.appendChild(paragraph(H.riskResult.problemText(reply), "problem"));
       return;
     }
     if (reply.skipped === "protection-off") {
@@ -155,6 +199,11 @@
     verdict.append(pill, host);
     box.appendChild(verdict);
     box.appendChild(paragraph(result.summary, "muted"));
+    // Step 10: the central risk engine's view of this address, in the same summary every checker uses.
+    if (reply.assessment) {
+      box.appendChild(H.riskResult.render(reply.assessment, { label: "Overall result from the central risk engine" }));
+      H.riskResult.record(reply.assessment);
+    }
     if (result.assumedScheme) box.appendChild(paragraph("You did not type http or https, so this was checked as https.", "muted small note"));
     if (reply.quietSite) box.appendChild(paragraph("You marked this site as quiet, so Prevenza will not interrupt you there. This check ran because you asked for it.", "muted small note"));
     const list = document.createElement("ul");

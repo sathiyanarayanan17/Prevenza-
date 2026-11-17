@@ -35,6 +35,7 @@
     [MSG.SCAN_MESSAGE]: ["page"],
     [MSG.ANALYZE_UPI]: ["page"],
     [MSG.ANALYZE_SCREENSHOT]: ["page"],
+    [MSG.RECORD_SCAN]: ["page"],
     [MSG.CONTENT_READY]: ["content"],
   });
 
@@ -47,6 +48,8 @@
   const UPI_FIELDS = ["upiId", "name", "amount", "reason", "qrText"];
   // The screenshot analyzer accepts the text that was read, a language choice and the reader's confidence. Never the image.
   const SHOT_FIELDS = ["text", "language", "confidence"];
+  // Step 10: the dashboard counts a finished check by its risk category. Exactly one field, from a fixed list.
+  const RECORD_FIELDS = ["category"];
   const MAX_URL_INPUT = 2048;
   const MAX_HOSTNAME_INPUT = 253;
 
@@ -292,6 +295,18 @@
               linksChecked: links.checked,
             },
           };
+        }
+
+        // Step 10: aggregate statistics. The checks themselves never write to storage; the dashboard sends this
+        // afterwards with the category only (LOW, MEDIUM, HIGH, CRITICAL or INCONCLUSIVE). Never content of any kind.
+        case MSG.RECORD_SCAN: {
+          const p = message.payload;
+          if (!H.isPlainObject(p) || !hasOnlyKeys(p, RECORD_FIELDS)) return { ok: false, error: "bad-payload" };
+          if (typeof p.category !== "string" || !Object.prototype.hasOwnProperty.call(H.SCAN_COUNTERS, p.category)) return { ok: false, error: "bad-payload" };
+          if (typeof store.recordScan !== "function") return { ok: false, error: "unavailable" };
+          const settings = await store.getSettings();
+          if (!settings.enabled) return { ok: true, skipped: "protection-off" };
+          return { ok: true, stats: await store.recordScan(p.category) };
         }
 
         default:

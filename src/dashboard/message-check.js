@@ -70,7 +70,7 @@
 
   function render(reply, text) {
     result.textContent = "";
-    if (!reply.ok) return showProblem("Prevenza could not check that right now. Please try again.");
+    if (!reply.ok) return showProblem(H.riskResult.problemText(reply));
     if (reply.skipped === "protection-off") {
       result.appendChild(el("p", "muted", "Protection is off, so messages are not checked. Turn it on in Settings."));
       return;
@@ -81,17 +81,9 @@
     const a = r.assessment;
     const analysed = text.slice(0, r.analysedLength);
 
-    // Verdict: the Prevy mascot, a label with a shape, and the score with its meaning.
-    const verdict = el("div", "verdict");
-    const mascot = el("span");
-    mascot.setAttribute("data-mascot", "40");
-    mascot.setAttribute("aria-hidden", "true");
-    const pill = el("span", "pill");
-    H.ui.setCategoryPill(pill, a.category);
-    verdict.append(mascot, pill);
-    if (typeof a.score === "number") verdict.appendChild(el("span", "score", "Warning level " + a.score + " of 100"));
-    result.appendChild(verdict);
-    result.appendChild(el("p", "muted small", a.scoreMeaning));
+    // Step 10: the unified summary (Prevy, a label with a shape, the score and its meaning, confidence, evidence, action).
+    result.appendChild(H.riskResult.render(a));
+    H.riskResult.record(a);
     const holdySlot = el("div", "holdy-slot");
     result.appendChild(holdySlot);
     let whyHeading = null;
