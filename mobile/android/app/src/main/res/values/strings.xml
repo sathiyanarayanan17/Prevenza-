@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Prevenza</string>
+    <string name="title_activity_main">Prevenza</string>
+    <string name="package_name">app.prevenza.scamguard</string>
+    <string name="custom_url_scheme">app.prevenza.scamguard</string>
+</resources>

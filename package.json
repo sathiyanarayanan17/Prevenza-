@@ -7,6 +7,8 @@
     "icons": "node scripts/make-icons.js",
     "test": "node --test \"test/*.test.js\"",
     "test:e2e": "node e2e/run.js",
+    "test:e2e:web": "node e2e/web.js",
+    "web": "node scripts/serve-web.js",
     "ocr:assets": "node scripts/make-ocr-assets.js",
     "audit:detection": "node scripts/detection-check.js"
   },

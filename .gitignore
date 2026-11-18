@@ -3,3 +3,6 @@ e2e/shots/
 *.log
 .DS_Store
 Thumbs.db
+
+# Android app: generated from web/ and src/ by scripts/build-mobile.js
+mobile/www/

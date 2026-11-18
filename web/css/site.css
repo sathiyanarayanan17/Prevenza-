@@ -85,3 +85,6 @@ html[data-elder="true"] .web-counts { grid-template-columns: minmax(0, 1fr); }
   html { scroll-behavior: auto; }
   * { transition: none !important; animation: none !important; }
 }
+
+/* cards in a grid line up: the theme's card spacing is for stacked cards */
+.grid-3 > .card, .grid-4 > .card, .landing-hero > .card { margin: 0; }

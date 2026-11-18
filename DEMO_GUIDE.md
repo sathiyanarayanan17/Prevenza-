@@ -50,13 +50,13 @@ Popup and settings, website checker, message checker (English, Hindi, Tamil, Hin
 
 ## 9. Testing summary
 
-Final run: 396/396 unit, security and privacy tests passed, and 432/432 real-browser checks passed (Chromium with the extension loaded).
+Latest run: 428/428 unit, security and privacy tests passed, 432/432 real-browser checks passed (Chromium with the extension loaded) and 77/77 website browser checks passed (`npm run test:e2e:web`).
 - **Covered:** every checker end to end, Elder Mode, languages, Emergency Help, keyboard use, phone and desktop layouts, protection off, browser restart, no network requests, and nothing private stored.
 - **Measured on the development machine:** each check answered in under 10 ms (median, largest inputs). The dashboard was ready in 57 to 211 ms. One screenshot took about 0.4 to 1.7 seconds to read.
 
 ## 10. Future improvements
 
-Warning before a risky page opens. A larger reviewed rule set with a held-out test set. Optional consented online checks. A fully reviewed Hindi and Tamil interface. An Android companion.
+Warning before a risky page opens. A larger reviewed rule set with a held-out test set. Optional consented online checks. A fully reviewed Hindi and Tamil interface. Finishing and testing the Android app (the project and the "Share to Prevenza" feature exist, but have not yet been run on a device).
 
 ---
 
@@ -95,3 +95,13 @@ Finish on the dashboard overview: the counts (checks done, high or critical) wen
 - **The screenshot reads badly:** use the clearer `demo-scam.png`, or correct the text and press **Check this text again**.
 - **The result differs from this guide:** say so. Do not claim a result the screen does not show. The rules may rate an example differently from the one shown here.
 - **An error shows on the extension card:** reload the extension in `chrome://extensions/`.
+
+## Optional: the website (2 minutes)
+
+The same checkers run as a website, with no extension needed. This is a good backup if Chrome will not load the extension.
+
+1. In the project folder run `npm run web` and open `http://127.0.0.1:5173/web/` (use `http`, not a file address: the offline screenshot reader does not work from a file).
+2. Show the landing page: the headline, the labelled **Example** result, **Privacy** and **Honest limits**. The example is the real engine's result for its text, not a mock-up.
+3. Press **Check something now** and repeat Demos 2 to 5 from the table above. Elder Mode and the language are on the same page, under *Assistant and accessibility*.
+4. Say what is stored: only the language, Elder Mode and counts, in this browser's `localStorage`. Nothing you check is saved. Pressing **Reset statistics** twice clears the counts.
+5. The Android app is in development. Do not demo it as finished: the project and the "Share to Prevenza" feature are built and tested in a browser, but have not been run on a phone yet.
