@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en" data-elder="false">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <meta name="referrer" content="no-referrer">
+  <meta name="description" content="Think you were scammed? Calm, step-by-step help and the official Indian reporting channels: cybercrime.gov.in and helpline 1930.">
+  <title>Emergency Help - Prevenza: Scam Guard</title>
+  <link rel="icon" href="../../assets/icons/icon48.png">
+  <link rel="stylesheet" href="../../src/shared/theme.css">
+  <link rel="stylesheet" href="../../src/dashboard/dashboard.css">
+  <link rel="stylesheet" href="../../src/emergency/emergency.css">
+  <link rel="stylesheet" href="../css/site.css">
+</head>
+<body>
+  <header class="page-head">
+    <a class="brand brand-link" href="../index.html">
+      <span data-mascot="52" aria-hidden="true"></span>
+      <span>
+        <span class="brand-name">Prevenza: Scam Guard</span>
+        <span class="brand-sub">Emergency Help</span>
+      </span>
+    </a>
+    <nav class="nav" aria-label="Pages">
+      <a class="btn" href="check.html">Check something</a>
+      <a class="btn" href="../index.html">Home</a>
+    </nav>
+  </header>
+
+  <main class="wrap emergency">
+    <section class="card emg-intro" aria-labelledby="emg-h">
+      <div class="emg-intro-text">
+        <h1 id="emg-h" data-i18n="emergency_btn">Emergency Help</h1>
+        <p class="muted" id="emg-calm"></p>
+        <p class="notice" id="emg-lang-note" role="note" hidden></p>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="pick-h" id="pick-card">
+      <h2 id="pick-h"></h2>
+      <p class="muted small" id="pick-help"></p>
+      <div class="incident-list" id="incident-list" role="group" aria-labelledby="pick-h"></div>
+      <p class="problem" id="pick-msg" role="status" aria-live="polite" hidden></p>
+    </section>
+
+    <section class="card" aria-labelledby="steps-h" id="steps-card" hidden>
+      <p class="muted small" id="steps-kicker"></p>
+      <h2 id="steps-h" tabindex="-1"></h2>
+      <div id="steps-body"></div>
+    </section>
+    <p class="muted" id="steps-empty"></p>
+
+    <section class="card" aria-labelledby="report-h" id="report-card">
+      <h2 id="report-h"></h2>
+      <p id="report-intro"></p>
+      <p class="notice" id="bank-reminder" role="note"></p>
+
+      <div class="report-block">
+        <h3 id="portal-h"></h3>
+        <p class="portal-address" id="portal-address"></p>
+        <div class="btn-row">
+          <a class="btn btn-primary" id="portal-link" target="_blank" rel="noopener noreferrer"></a>
+        </div>
+      </div>
+
+      <div class="report-block">
+        <h3 id="helpline-h"></h3>
+        <p class="helpline-number" id="helpline-number"></p>
+        <div class="btn-row">
+          <button class="btn" type="button" id="copy-helpline"></button>
+        </div>
+        <p class="muted small" id="copy-status" role="status" aria-live="polite"></p>
+      </div>
+
+      <details class="emg-more" id="report-more">
+        <summary id="report-more-summary">More about reporting</summary>
+        <div id="report-more-body"></div>
+      </details>
+    </section>
+
+    <section class="card" aria-labelledby="trust-emg-h" id="trust-card">
+      <h2 id="trust-emg-h"></h2>
+      <p id="trust-sentence"></p>
+      <div id="trust-slot"></div>
+    </section>
+
+    <div class="btn-row emg-back">
+      <a class="btn btn-primary" href="check.html">Back to the checkers</a>
+    </div>
+  </main>
+
+  <footer class="site-foot">
+    <p class="muted small">Prevenza does not call, send or file anything for you. It cannot freeze accounts or recover money.</p>
+  </footer>
+
+  <script src="../../src/shared/constants.js"></script>
+  <script src="../../src/shared/settings.js"></script>
+  <script src="../../src/shared/storage.js"></script>
+  <script src="../../src/background/handler.js"></script>
+  <script src="../js/web-bridge.js"></script>
+  <script src="../../src/shared/mascot.js"></script>
+  <script src="../../src/shared/ui.js"></script>
+  <script src="../../src/shared/elder-text.js"></script>
+  <script src="../../src/shared/i18n.js"></script>
+  <script src="../../src/shared/family-guide.js"></script>
+  <script src="../../src/shared/emergency.js"></script>
+  <script src="../../src/emergency/emergency.js"></script>
+</body>
+</html>

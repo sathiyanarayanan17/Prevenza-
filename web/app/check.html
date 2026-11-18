@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en" data-elder="false">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <meta name="referrer" content="no-referrer">
+  <meta name="description" content="Check a link, message, UPI payment request or screenshot for scam signs. Runs on your device. Nothing is sent anywhere.">
+  <title>Check something - Prevenza: Scam Guard</title>
+  <link rel="icon" href="../../assets/icons/icon48.png">
+  <link rel="stylesheet" href="../../src/shared/theme.css">
+  <link rel="stylesheet" href="../../src/dashboard/dashboard.css">
+  <link rel="stylesheet" href="../css/site.css">
+</head>
+<body>
+  <a class="skip-link" href="#tools-nav">Skip to the checkers</a>
+  <header class="page-head">
+    <a class="brand brand-link" href="../index.html">
+      <span data-mascot="52" aria-hidden="true"></span>
+      <span>
+        <span class="brand-name">Prevenza: Scam Guard</span>
+        <span class="brand-sub">Check before you act</span>
+      </span>
+    </a>
+    <nav class="nav" aria-label="Pages">
+      <a class="btn btn-emergency" href="emergency.html" aria-describedby="emergency-desc"><span data-i18n="emergency_btn">Emergency Help</span></a>
+      <span class="visually-hidden" id="emergency-desc">Opens quick safety steps if you think you have been scammed.</span>
+      <a class="btn" href="../index.html">Home</a>
+    </nav>
+  </header>
+
+  <main class="wrap">
+    <section class="hero card" aria-labelledby="hero-h">
+      <div class="hero-text">
+        <h1 id="hero-h" data-i18n="dash_hero">Pause. Let's check first.</h1>
+        <p class="muted">Everything is checked inside this browser. Nothing you check is saved or sent anywhere.</p>
+      </div>
+      <div class="latest">
+        <span class="muted small">Latest check on this page</span>
+        <span class="pill pill-unknown" id="overall-pill">Not scanned yet</span>
+      </div>
+    </section>
+
+    <section class="card prefs" aria-labelledby="prefs-h">
+      <h2 id="prefs-h" data-i18n="set_assistant">Assistant and accessibility</h2>
+      <div class="row">
+        <div class="row-text">
+          <label class="row-title" for="pref-language">Language / भाषा / மொழி</label>
+          <p class="muted small" data-i18n="set_language_help">Prevy's warnings, the Ask someone you trust guide and the main headings and buttons change. Other details stay in English.</p>
+        </div>
+        <select id="pref-language"></select>
+      </div>
+      <div class="row">
+        <div class="row-text">
+          <div class="row-title" data-i18n="set_elder">Elder mode</div>
+          <p class="muted small" data-i18n="set_elder_help">Bigger text and buttons, stronger contrast, simple words and a simpler dashboard.</p>
+        </div>
+        <label class="switch"><input type="checkbox" id="pref-elder" role="switch" aria-label="Elder mode"><span class="track"></span></label>
+      </div>
+      <p class="muted small" id="prefs-note">These choices are kept in this browser only.</p>
+    </section>
+
+    <nav class="card tools-nav" aria-labelledby="tools-h" id="tools-nav">
+      <h2 id="tools-h" tabindex="-1" data-i18n="dash_tools">What would you like to check?</h2>
+      <p class="muted small">Each check runs on your device. Nothing you check is saved or sent anywhere.</p>
+      <ul class="tool-cards">
+        <li><a class="tool-card" href="#link-check" data-target="link-input"><span class="tool-icon" aria-hidden="true">&#128279;</span><span class="tool-text"><strong data-i18n="nav_link">Check a website</strong><span class="muted small">Paste a link you were sent.</span></span></a></li>
+        <li><a class="tool-card" href="#message-check" data-target="msg-input"><span class="tool-icon" aria-hidden="true">&#128172;</span><span class="tool-text"><strong data-i18n="nav_message">Check a suspicious message</strong><span class="muted small">SMS, WhatsApp or email text.</span></span></a></li>
+        <li><a class="tool-card" href="#upi-check" data-target="upi-id"><span class="tool-icon" aria-hidden="true">&#8377;</span><span class="tool-text"><strong data-i18n="nav_upi">Check a UPI payment request</strong><span class="muted small">Before you pay or approve.</span></span></a></li>
+        <li><a class="tool-card" href="#screenshot-check" data-target="shot-file"><span class="tool-icon" aria-hidden="true">&#128444;</span><span class="tool-text"><strong data-i18n="nav_shot">Scan a screenshot</strong><span class="muted small">A chat or a payment receipt.</span></span></a></li>
+        <li class="tool-emergency"><a class="tool-card tool-card-emergency" href="emergency.html"><span class="tool-icon" aria-hidden="true">+</span><span class="tool-text"><strong data-i18n="emergency_btn">Emergency Help</strong><span class="muted small">Think you were scammed? Start here.</span></span></a></li>
+      </ul>
+    </nav>
+
+    <section class="card elder-only" aria-labelledby="trust-h" id="trust-guide">
+      <h2 id="trust-h" data-i18n="trust_title">Ask someone you trust</h2>
+      <p class="muted" data-i18n="trust_sub">Not sure about something? Read this before you send money or share any details.</p>
+      <div id="trust-slot"></div>
+    </section>
+
+    <section class="card" aria-labelledby="link-h" id="link-check">
+      <h2 id="link-h" data-i18n="dash_link">Check a link</h2>
+      <p class="muted small">Paste a web address you were sent. It is checked on your device. Nothing is saved or sent anywhere.</p>
+      <form class="link-form" id="link-form" autocomplete="off">
+        <label class="visually-hidden" for="link-input">Web address to check</label>
+        <input type="text" id="link-input" maxlength="2048" placeholder="Paste a link here" spellcheck="false" inputmode="url" autocomplete="off">
+        <button class="btn btn-primary" type="submit" data-i18n="btn_check_link">Check link</button>
+      </form>
+      <div id="link-result" class="link-result" aria-live="polite"></div>
+      <p class="back-row"><a class="back-link" href="#tools-nav" data-i18n="dash_back">Back to the dashboard menu</a></p>
+    </section>
+
+    <section class="card" aria-labelledby="msg-h" id="message-check">
+      <h2 id="msg-h" data-i18n="dash_message">Check a message</h2>
+      <p class="muted small">Paste a message you received by SMS, WhatsApp or email. It is checked on your device. Nothing is saved or sent anywhere, and Prevenza never reads your messages by itself.</p>
+      <form class="msg-form" id="msg-form" autocomplete="off">
+        <label class="row-title" for="msg-input">Message text</label>
+        <textarea id="msg-input" maxlength="5000" rows="6" spellcheck="false" autocomplete="off" placeholder="Paste the message here" aria-describedby="msg-count"></textarea>
+        <p class="muted small" id="msg-count">0 of 5000 characters</p>
+        <div class="msg-controls">
+          <label for="msg-language">Language</label>
+          <select id="msg-language"></select>
+          <button class="btn btn-primary" type="submit" id="msg-analyze" data-i18n="btn_analyze_message">Analyze message</button>
+          <button class="btn" type="button" id="msg-clear" data-i18n="btn_clear">Clear</button>
+        </div>
+      </form>
+      <div id="msg-result" class="msg-result" aria-live="polite"></div>
+      <p class="back-row"><a class="back-link" href="#tools-nav" data-i18n="dash_back">Back to the dashboard menu</a></p>
+    </section>
+
+    <section class="card" aria-labelledby="upi-h" id="upi-check">
+      <h2 id="upi-h" data-i18n="dash_upi">Check a UPI payment</h2>
+      <p class="muted small">Type the details of a payment you are about to make, or were asked to make. They are checked on your device. Nothing is saved or sent anywhere. Prevenza cannot see your UPI app, and it cannot stop or cancel a payment.</p>
+      <p class="notice" role="note"><strong>Never type your UPI PIN or an OTP here.</strong> Prevenza does not need them and will never ask for them.</p>
+      <form class="upi-form" id="upi-form" autocomplete="off">
+        <div class="field">
+          <label for="upi-id">Recipient UPI ID (optional)</label>
+          <input type="text" id="upi-id" maxlength="100" placeholder="name@bank" spellcheck="false" autocomplete="off" autocapitalize="off">
+        </div>
+        <div class="field">
+          <label for="upi-name">Recipient name (optional)</label>
+          <input type="text" id="upi-name" maxlength="100" spellcheck="false" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="upi-amount">Payment amount in rupees</label>
+          <input type="text" id="upi-amount" maxlength="40" inputmode="decimal" placeholder="for example 500" spellcheck="false" autocomplete="off">
+        </div>
+        <div class="field wide">
+          <label for="upi-reason">Payment request message or reason (optional)</label>
+          <textarea id="upi-reason" rows="3" maxlength="1000" spellcheck="false" autocomplete="off"></textarea>
+        </div>
+        <div class="field wide">
+          <label for="upi-qr">Decoded QR text (optional)</label>
+          <textarea id="upi-qr" rows="2" maxlength="1000" spellcheck="false" autocomplete="off" placeholder="upi://pay?pa=name@bank&amp;pn=Name&amp;am=100" aria-describedby="upi-qr-help"></textarea>
+          <p class="muted small" id="upi-qr-help">Paste the text your QR scanner shows. Prevenza does not use your camera or scan your screen.</p>
+        </div>
+        <div class="btn-row wide">
+          <button class="btn btn-primary" type="submit" id="upi-analyze" data-i18n="btn_analyze_payment">Analyze payment</button>
+          <button class="btn" type="button" id="upi-clear" data-i18n="btn_clear">Clear</button>
+        </div>
+      </form>
+      <div id="upi-result" class="msg-result" aria-live="polite"></div>
+      <p class="back-row"><a class="back-link" href="#tools-nav" data-i18n="dash_back">Back to the dashboard menu</a></p>
+    </section>
+
+    <section class="card" aria-labelledby="shot-h" id="screenshot-check">
+      <h2 id="shot-h" data-i18n="dash_shot">Check a screenshot</h2>
+      <p class="muted small">Choose a screenshot you saved yourself, such as a chat or a payment receipt. Prevenza reads the text on your device. The image and the text are never saved or sent anywhere. Prevenza cannot see WhatsApp, your bank or your UPI app, and it never takes screenshots by itself.</p>
+      <p class="notice" role="note"><strong>Do not trust a payment screenshot alone.</strong> Verify the payment in your own bank or UPI application.</p>
+      <div class="shot-pick">
+        <input type="file" id="shot-file" class="visually-hidden" accept="image/png,image/jpeg">
+        <label class="btn btn-primary" for="shot-file" id="shot-file-label" data-i18n="btn_choose_shot">Choose a screenshot</label>
+        <span class="muted small" id="shot-file-name">No image chosen. PNG or JPEG, up to 8 MB.</span>
+      </div>
+      <div class="msg-controls">
+        <label for="shot-language">Language in the picture</label>
+        <select id="shot-language"></select>
+      </div>
+      <div class="shot-preview" id="shot-preview" hidden>
+        <img id="shot-img" alt="Preview of the screenshot you chose">
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" type="button" id="shot-analyze" data-i18n="btn_read_shot" disabled>Read and check screenshot</button>
+        <button class="btn" type="button" id="shot-remove" disabled>Remove image</button>
+        <button class="btn" type="button" id="shot-clear">Clear all</button>
+      </div>
+      <div class="progress-row" id="shot-progress-wrap" hidden>
+        <progress id="shot-progress" max="100" value="0" aria-labelledby="shot-status"></progress>
+        <span class="muted small" id="shot-status" role="status"></span>
+      </div>
+      <p class="problem" id="shot-problem" role="alert" hidden></p>
+      <div class="field wide" id="shot-text-wrap" hidden>
+        <label for="shot-text">Text found in the screenshot (you can correct it)</label>
+        <textarea id="shot-text" rows="6" maxlength="5000" spellcheck="false" autocomplete="off"></textarea>
+        <div class="btn-row"><button class="btn" type="button" id="shot-recheck">Check this text again</button></div>
+      </div>
+      <div id="shot-result" class="msg-result" aria-live="polite"></div>
+      <p class="back-row"><a class="back-link" href="#tools-nav" data-i18n="dash_back">Back to the dashboard menu</a></p>
+    </section>
+
+    <h2 class="elder-only" id="more-tools" data-i18n="dash_more">More tools and information</h2>
+
+    <section class="two">
+      <article class="card" aria-labelledby="counts-h" id="overview">
+        <h2 id="counts-h" data-i18n="dash_overview">Overview</h2>
+        <p class="muted small">Only counts are kept, in this browser. Prevenza never saves what you checked: no links, messages, images, UPI IDs, names or amounts.</p>
+        <dl class="web-counts">
+          <div><dt>Checks done</dt><dd id="stat-scans">-</dd></div>
+          <div><dt><span class="stat-icon" aria-hidden="true">!!</span> High or critical</dt><dd id="stat-high">-</dd></div>
+          <div><dt><span class="stat-icon" aria-hidden="true">o</span> Low or medium</dt><dd id="stat-lowmed">-</dd></div>
+          <div><dt><span class="stat-icon" aria-hidden="true">?</span> Inconclusive</dt><dd id="stat-inconclusive">-</dd></div>
+          <div><dt>Last check</dt><dd id="stat-lastscan">-</dd></div>
+        </dl>
+        <div class="btn-row">
+          <button class="btn btn-danger" type="button" id="reset-stats">Reset statistics</button>
+        </div>
+      </article>
+
+      <article class="card" aria-labelledby="scale-h">
+        <h2 id="scale-h">Risk scale</h2>
+        <p class="muted small">What the labels and shapes mean. Every check uses this one scale from the central risk engine. The number is a warning level, not a probability.</p>
+        <ul class="legend" id="legend"></ul>
+      </article>
+    </section>
+  </main>
+
+  <footer class="site-foot">
+    <p class="muted small">Prevenza gives warnings, not guarantees. A low result means no strong warning signs were found, not that something is safe.</p>
+    <p class="small"><a href="../index.html#privacy">Privacy</a> &middot; <a href="emergency.html">Emergency Help</a></p>
+  </footer>
+
+  <script src="../../src/shared/constants.js"></script>
+  <script src="../../src/shared/settings.js"></script>
+  <script src="../../src/shared/storage.js"></script>
+  <script src="../../src/shared/url-rules.js"></script>
+  <script src="../../src/shared/url-intel.js"></script>
+  <script src="../../src/shared/risk-rules.js"></script>
+  <script src="../../src/shared/risk-engine.js"></script>
+  <script src="../../src/shared/message-rules.js"></script>
+  <script src="../../src/shared/message-scan.js"></script>
+  <script src="../../src/shared/upi-rules.js"></script>
+  <script src="../../src/shared/holdy-text.js"></script>
+  <script src="../../src/shared/holdy.js"></script>
+  <script src="../../src/shared/upi-analyze.js"></script>
+  <script src="../../src/shared/screenshot.js"></script>
+  <script src="../../src/background/handler.js"></script>
+  <script src="../js/web-bridge.js"></script>
+  <script src="../../src/shared/mascot.js"></script>
+  <script src="../../src/shared/ui.js"></script>
+  <script src="../../src/shared/elder-text.js"></script>
+  <script src="../../src/shared/i18n.js"></script>
+  <script src="../../src/shared/family-guide.js"></script>
+  <script src="../../src/shared/holdy-card.js"></script>
+  <script src="../../src/shared/risk-result.js"></script>
+  <script src="../js/check-page.js"></script>
+  <script src="../../src/dashboard/message-check.js"></script>
+  <script src="../../src/dashboard/upi-check.js"></script>
+  <script src="../../src/dashboard/ocr-runner.js"></script>
+  <script src="../../src/dashboard/screenshot-check.js"></script>
+</body>
+</html>
