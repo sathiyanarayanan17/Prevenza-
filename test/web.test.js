@@ -149,7 +149,7 @@ test("external links open without leaking the page address", () => {
 test("every element id used by the reused checker scripts exists exactly once in check.html", () => {
   const html = read(path.join(webDir, "app", "check.html"));
   const count = (id) => [...html.matchAll(new RegExp('\\bid="' + id.replace(/[-]/g, "\\-") + '"', "g"))].length;
-  const scripts = ["src/dashboard/message-check.js", "src/dashboard/upi-check.js", "src/dashboard/ocr-runner.js", "src/dashboard/screenshot-check.js", "web/js/check-page.js"];
+  const scripts = ["src/dashboard/message-check.js", "src/dashboard/upi-check.js", "src/dashboard/ocr-runner.js", "src/dashboard/screenshot-check.js", "src/dashboard/qr-reader.js", "web/js/check-page.js"];
   let total = 0;
   for (const script of scripts) {
     const code = read(path.join(root, script));

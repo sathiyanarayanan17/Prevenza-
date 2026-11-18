@@ -92,7 +92,7 @@ public class ShareTargetPlugin extends Plugin {
                         out.put("base64", Base64.encodeToString(bytes, Base64.NO_WRAP));
                     }
                 } catch (Exception e) {
-                    out.put("kind", "none");
+                    out.put("kind", "unreadable");
                 }
             }
         } else {

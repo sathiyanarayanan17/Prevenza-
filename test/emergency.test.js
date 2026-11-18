@@ -239,3 +239,39 @@ test("Elder Mode keeps the Emergency Help button large", () => {
   assert.match(own, /html\[data-elder="true"\] \.incident-list/);
   assert.doesNotMatch(strip(own), /@keyframes|animation\s*:|blink|flash|countdown/i);
 });
+
+// ------------------------------------------------------------------ Step 12: prepare your complaint
+test("complaint helper: lists what to write down, warns never to include secrets, and has a plain template", () => {
+  const C = E.COMPLAINT;
+  assert.ok(Object.isFrozen(C) && Object.isFrozen(C.items) && Object.isFrozen(C.template));
+  const items = C.items.join(" ");
+  for (const re of [/date and the time/, /phone numbers, UPI IDs, website addresses/, /transaction or UTR reference/, /last four digits/, /screenshots/i, /already done/]) assert.match(items, re);
+  assert.ok(C.elderItems.length < C.items.length && C.elderItems.join(" ").length < items.length, "the Elder Mode list is shorter");
+  assert.match(C.never, /Never write your OTP, UPI PIN, passwords or full card number/);
+  assert.ok(C.template.length >= 6 && C.template.every((l) => /^[A-Z][^:]+: \(.+\)$/.test(l)), "every template line is 'Label: (hint)'");
+  assert.match(C.templateHelp, /does not fill it in, copy it or keep anything/);
+});
+
+test("complaint helper: no numbers except 1930, no addresses, no contact links, and it never asks for a secret", () => {
+  const all = JSON.stringify(E.COMPLAINT);
+  assert.doesNotMatch(all, /https?:\/\/|\bwww\./i);
+  assert.doesNotMatch(all, /\d/, "no digits at all in the complaint helper");
+  assert.doesNotMatch(all, /tel:|sms:|mailto:|whatsapp|intent:/i);
+  for (const line of [...E.COMPLAINT.items, ...E.COMPLAINT.elderItems, ...E.COMPLAINT.template]) {
+    assert.doesNotMatch(line, /\b(OTP|PIN|password|CVV)\b/i, "only the warning line may mention secrets: " + line);
+  }
+});
+
+test("complaint helper on the page: read-only text in both Emergency Help pages, no boxes, no extra clipboard use", () => {
+  for (const file of [["src", "emergency", "emergency.html"], ["web", "app", "emergency.html"]]) {
+    const html = fs.readFileSync(path.join(__dirname, "..", ...file), "utf8");
+    const card = html.slice(html.indexOf('id="complaint-card"'), html.indexOf('id="trust-card"'));
+    for (const id of ["complaint-h", "complaint-intro", "complaint-list", "complaint-never", "complaint-template", "complaint-help"]) assert.match(card, new RegExp('id="' + id + '"'), file.join("/") + " #" + id);
+    assert.match(card, /<pre class="complaint-template" id="complaint-template" tabindex="0"/);
+    assert.doesNotMatch(card, /<(input|textarea|select|form|button)\b|contenteditable/i);
+    assert.ok(html.indexOf('id="report-card"') < html.indexOf('id="complaint-card"'), "it follows the reporting card");
+  }
+  const page = fs.readFileSync(path.join(__dirname, "..", "src", "emergency", "emergency.js"), "utf8");
+  assert.equal((page.match(/navigator\.clipboard/g) || []).length, 1, "the helpline copy stays the only clipboard use");
+  assert.match(page, /\$\("complaint-template"\)\.textContent = C\.template\.join\("\\n"\)/);
+});

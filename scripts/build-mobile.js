@@ -23,6 +23,8 @@ const COPY = [
   "src/dashboard/ocr-runner.js",
   "src/emergency/",
   "vendor/tesseract/",
+  "vendor/jsqr/",
+  "src/dashboard/qr-reader.js",
   "assets/icons/",
 ];
 const COPY_PATTERNS = [{ dir: "src/dashboard", match: /-check\.js$/ }];

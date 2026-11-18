@@ -200,6 +200,43 @@
     },
   ];
 
+
+  // Step 12: what to write down before reporting. Information only: the page has no boxes to type into, nothing is
+  // copied automatically, and nothing is kept. The user reads it, or selects the template and copies it themselves.
+  const COMPLAINT = {
+    heading: "Prepare your complaint",
+    intro: "Reporting is faster when the details are ready. Write these down first, on paper or in a notes app you trust, then use them on the portal or when you call the helpline.",
+    introElder: "Write these down before you report. Ask someone you trust to help if you like.",
+    items: [
+      "When it happened: the date and the time.",
+      "How it started: a call, an SMS or chat message, an email, a website or an app.",
+      "The details the scammer used: phone numbers, UPI IDs, website addresses, account names and any names they gave.",
+      "Each payment: the amount, the date and time, and the transaction or UTR reference number from your bank or UPI app.",
+      "Your bank, and which account or card was used. The last four digits of the card are enough.",
+      "Your evidence: screenshots of the messages, the payment receipts and the scammer's profile. Keep the originals on your phone.",
+      "What you have already done, for example calling your bank or blocking your card.",
+    ],
+    elderItems: [
+      "When it happened.",
+      "The phone number, UPI ID or website the scammer used.",
+      "How much money you sent, and the reference number from your bank or UPI app.",
+      "Screenshots of the messages and the payment.",
+    ],
+    never: "Never write your OTP, UPI PIN, passwords or full card number in a complaint. No real officer or portal needs them.",
+    templateHeading: "A simple template",
+    template: [
+      "What happened: (in your own words, in the order it happened)",
+      "When: (date and time)",
+      "How they contacted me: (call, SMS, chat app, email, website or app)",
+      "Their details: (phone numbers, UPI IDs, website addresses, names they used)",
+      "Money lost: (each amount, with the date, time and transaction or UTR reference)",
+      "My bank: (bank name and the account or card used, last four digits only)",
+      "Evidence I have: (screenshots, receipts, call records)",
+      "What I have done so far: (for example, called my bank, blocked my card)",
+    ],
+    templateHelp: "You can select this text and copy it into the portal or your notes. Prevenza does not fill it in, copy it or keep anything you write.",
+  };
+
   function deepFreeze(o) {
     Object.values(o).forEach((v) => {
       if (v && typeof v === "object") deepFreeze(v);
@@ -209,6 +246,7 @@
   deepFreeze(OFFICIAL);
   deepFreeze(TEXT);
   deepFreeze(INCIDENTS);
+  deepFreeze(COMPLAINT);
 
   const BY_ID = new Map(INCIDENTS.map((i) => [i.id, i]));
 
@@ -240,5 +278,5 @@
     return TEXT.stepOf.replace("{n}", String(n)).replace("{total}", String(total));
   }
 
-  return { OFFICIAL, TRUST_SENTENCE, TEXT, INCIDENTS, getIncident, stepsFor, parseHash, stepLabel };
+  return { OFFICIAL, TRUST_SENTENCE, TEXT, INCIDENTS, COMPLAINT, getIncident, stepsFor, parseHash, stepLabel };
 });

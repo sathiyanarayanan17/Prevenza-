@@ -7,6 +7,7 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 const { start } = require("../scripts/serve-web.js");
+const QR = require("qrcode");
 const { build: buildMobile } = require("../scripts/build-mobile.js");
 
 const SHOTS = path.join(__dirname, "shots");
@@ -266,6 +267,49 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     }
     await checker.uncheck("#pref-elder", { force: true });
     await sleep(300);
+
+    // ---- 14. Step 12 on the website: QR codes in screenshots, the complaint helper, new rules and languages
+    const s12 = await open("/web/app/check.html");
+    const payload12 = "upi://pay?pa=refund.helpdesk@ybl&pn=Customer%20Care%20Refund&am=4999&tn=Pay%20to%20receive%20refund";
+    const qr12 = path.join(os.tmpdir(), "prevenza-web-qr.png");
+    fs.writeFileSync(qr12, await QR.toBuffer(payload12, { width: 420, margin: 3 }));
+    const reqBeforeQr = requests.length;
+    await s12.setInputFiles("#shot-file", qr12);
+    await s12.waitForSelector("#shot-qr:not([hidden])", { timeout: 15000 }).catch(() => null);
+    check("website (Step 12): a UPI QR code in the chosen picture is found on the device", (await s12.isVisible("#shot-qr")) && (await s12.textContent("#shot-qr-use")) === "Check this QR payment");
+    check("website (Step 12): the QR reader came from this server", requests.slice(reqBeforeQr).some((u) => u === origin + "/vendor/jsqr/jsQR.js"));
+    await s12.click("#shot-qr-use");
+    check("website (Step 12): the QR text goes to the UPI checker and is not checked until asked", (await s12.inputValue("#upi-qr")) === payload12 && (await s12.textContent("#upi-result")).trim() === "");
+    await s12.click("#upi-analyze");
+    await s12.waitForFunction(() => document.getElementById("upi-result").textContent.length > 0);
+    check("website (Step 12): the QR payment is rated High or Critical", /(High|Critical) risk/.test(await s12.textContent("#upi-result")));
+    await shot(s12, "qr-in-screenshot");
+    await s12.click("#shot-clear");
+    await s12.click("#upi-clear");
+    const msgOnce = async (text) => {
+      await s12.fill("#msg-input", text);
+      await s12.click("#msg-analyze");
+      await s12.waitForFunction(() => document.getElementById("msg-result").textContent.length > 0);
+      const t = await s12.textContent("#msg-result");
+      await s12.click("#msg-clear");
+      return t;
+    };
+    check("website (Step 12): a job/task scam is flagged", /(High|Critical) risk/.test(await msgOnce("Earn Rs 3000 daily by liking YouTube videos. Pay Rs 500 registration fee to start today.")));
+    check("website (Step 12): a Telugu OTP scam is flagged", /(High|Critical) risk/.test(await msgOnce("మీ ఖాతా ఈరోజు బ్లాక్ అవుతుంది. వెంటనే మీ OTP చెప్పండి")));
+    check("website (Step 12): a Gujarati message is Inconclusive, never Low", /Inconclusive/.test(await msgOnce("તમારું ખાતું આજે બંધ થઈ જશે. હમણાં જ OTP મોકલો")));
+    await s12.fill("#link-input", "https://sbii-bank.com/login");
+    await s12.click("#link-form button[type=submit]");
+    await s12.waitForFunction(() => document.getElementById("link-result").textContent.length > 0);
+    check("website (Step 12): a doubled-letter bank look-alike is flagged", /(Medium|High|Critical) risk/.test(await s12.textContent("#link-result")));
+    const stored12 = JSON.stringify(await s12.evaluate(() => Object.entries(localStorage)));
+    check("website (Step 12): nothing from these checks is stored", !/refund\.helpdesk|upi:\/\/|youtube|sbii|ખાતું|ఖాతా/i.test(stored12));
+    await s12.close();
+    const em12 = await open("/web/app/emergency.html");
+    check("website (Step 12): Emergency Help shows 'Prepare your complaint' with a template, and nothing to type into", (await em12.textContent("#complaint-h")) === "Prepare your complaint" && /Money lost:/.test(await em12.textContent("#complaint-template")) && (await em12.locator("#complaint-card input, #complaint-card textarea").count()) === 0);
+    await em12.setViewportSize({ width: 390, height: 800 });
+    await sleep(200);
+    check("website (Step 12): the complaint template fits a 390px screen", await noSidewaysScroll(em12));
+    await em12.close();
 
     // ---- 13. the Android app's files (mobile/www) with a pretend Capacitor, to test "Share to Prevenza"
     buildMobile();

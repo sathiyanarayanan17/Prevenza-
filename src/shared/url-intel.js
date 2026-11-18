@@ -274,6 +274,27 @@
     return null;
   }
 
+  /**
+   * "sbii", "hdffc", "icicci": a short brand name with one letter typed twice. Short names are too common for general
+   * one-letter checks ("sbs", "bbc"), but a doubled letter is a narrow, common trick. Brands marked typo:false are skipped.
+   */
+  function doubledLetterMatch(part, brand) {
+    if (brand.typo === false) return null;
+    for (const t of nameTokens(brand)) {
+      if (t.length < 3 || part.length !== t.length + 1) continue;
+      for (let i = 0; i < t.length; i++) {
+        if (t.slice(0, i + 1) + t[i] + t.slice(i + 1) === part) return t;
+      }
+    }
+    return null;
+  }
+
+  /** "phonepay": a famous name spelled the way it sounds (listed per brand in url-rules.js). */
+  function soundsLikeMatch(part, brand) {
+    for (const t of brand.soundsLike || []) if (part === t || (t.length >= 6 && part.includes(t))) return t;
+    return null;
+  }
+
   function lookalikeMatch(part, brand) {
     const sk = skeleton(part);
     for (const t of nameTokens(brand)) {
@@ -390,6 +411,15 @@
           const fake = famousNameIn(d.unicode);
           const onlyLookalikeScript = scripts.size === 1 && (scripts.has("Cyrillic") || scripts.has("Greek"));
           const accented = scripts.has("Latin") && d.unicode.normalize("NFD").replace(/[\u0300-\u036f]/g, "") !== d.unicode;
+          // "sŋbi": an unusual letter slipped into a famous name. Without the non-English letters it spells the name exactly.
+          const plain = d.unicode.replace(/[^a-z0-9]/g, "");
+          const inserted = !fake && plain.length >= 3 && plain !== d.unicode && scripts.has("Latin") ? R.BRANDS.find((b) => b.exact.includes(plain) || b.contains.includes(plain)) : null;
+          if (inserted) {
+            add("homograph_whole", "Hides an unusual letter inside the name " + inserted.name, "Without its unusual letter this address spells " + inserted.name + ". Scammers add a letter that is easy to miss to make a fake site look real.", { critical: true });
+            critical = true;
+            brandHit = true;
+            break;
+          }
           if (fake && (onlyLookalikeScript || accented)) {
             add("homograph_whole", "Uses look-alike letters to copy " + fake.name, "The letters in this address look like the name " + fake.name + " but are different characters. Scammers use this to make a fake site look real.", { critical: true });
             critical = true;
@@ -422,6 +452,20 @@
             if (nameMatch(part, b)) {
               consider("brand_in_subdomain", W.brand_in_subdomain, "Puts the name " + b.name + " in front of a different website",
                 "The name " + b.name + " appears at the start of this address, but the site itself is " + info.registrable + ". Only the last part of an address shows who really owns it.");
+            }
+          }
+          // the whole name without hyphens too, so "axxis-bank" is compared as "axxisbank"
+          const sldJoined = sldParts.length > 1 ? [sldParts.join("")] : [];
+          for (const part of sldParts.concat(sldJoined)) {
+            const doubled = doubledLetterMatch(part, b);
+            if (doubled) {
+              consider("brand_typosquat", W.brand_typosquat, "Looks like a misspelling of " + b.name,
+                "'" + part + "' is '" + doubled + "' with one letter typed twice. Scammers register misspelled names hoping you will not notice.");
+            }
+            const sounds = soundsLikeMatch(part, b);
+            if (sounds) {
+              consider("brand_typosquat", W.brand_typosquat, "Spells " + b.name + " the way it sounds",
+                "'" + part + "' is how '" + b.name + "' sounds, not how it is spelled. Scammers register names like this to catch people who type by ear.");
             }
           }
           for (const part of sldParts) {

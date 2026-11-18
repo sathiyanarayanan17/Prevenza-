@@ -41,16 +41,16 @@ Popup and settings, website checker, message checker (English, Hindi, Tamil, Hin
 
 ## 8. Known limitations (say these honestly if asked)
 
-- Rule-based, offline detection: it catches common patterns, not every scam. In our spot-check, a "like videos and earn money" job scam was missed.
+- Rule-based, offline detection: it catches common patterns, not every scam. The "like videos and earn money" job scam that the spot-check used to miss is now caught, but new wording will still be missed.
 - Small built-in brand list for website checks. Domain age and reputation are not checked.
 - OCR struggles with rotated or very stylised text.
 - Hindi and Tamil text needs native-speaker review. Detailed reasons and the emergency steps are in English.
-- It does not yet warn on websites by itself.
+- The warning before a website uses only the site name, so scam sites with ordinary names are not warned about.
 - The spot-check numbers are not an accuracy measurement.
 
 ## 9. Testing summary
 
-Latest run: 428/428 unit, security and privacy tests passed, 432/432 real-browser checks passed (Chromium with the extension loaded) and 77/77 website browser checks passed (`npm run test:e2e:web`).
+Latest run: 465/465 unit, security and privacy tests passed, 464/464 real-browser checks passed (Chromium with the extension loaded) and 88/88 website browser checks passed (`npm run test:e2e:web`).
 - **Covered:** every checker end to end, Elder Mode, languages, Emergency Help, keyboard use, phone and desktop layouts, protection off, browser restart, no network requests, and nothing private stored.
 - **Measured on the development machine:** each check answered in under 10 ms (median, largest inputs). The dashboard was ready in 57 to 211 ms. One screenshot took about 0.4 to 1.7 seconds to read.
 
@@ -95,6 +95,16 @@ Finish on the dashboard overview: the counts (checks done, high or critical) wen
 - **The screenshot reads badly:** use the clearer `demo-scam.png`, or correct the text and press **Check this text again**.
 - **The result differs from this guide:** say so. Do not claim a result the screen does not show. The rules may rate an example differently from the one shown here.
 - **An error shows on the extension card:** reload the extension in `chrome://extensions/`.
+
+## Optional: what is new in Step 12 (3 minutes)
+
+1. **Warning before a risky website.** Do not visit real scam sites. Show the screenshot `e2e/shots/29-page-warning.png` (made by the automated test with a pretend scam site), point out **Continue anyway**, and show the setting *Warn me before a risky website*.
+2. **QR code in a screenshot.** Choose a picture with a UPI QR code in **Scan a screenshot** (make one with any QR generator from `upi://pay?pa=refund.helpdesk@ybl&am=4999&tn=Pay%20to%20receive%20refund`). Press **Check this QR payment**, then **Analyze payment**: High or Critical risk.
+3. **Job scam.** Paste `Earn Rs 3000 daily by liking YouTube videos. Pay Rs 500 registration fee to start today.` High risk.
+4. **More languages.** Paste `మీ ఖాతా ఈరోజు బ్లాక్ అవుతుంది. వెంటనే మీ OTP చెప్పండి` (Telugu): High risk, with a note that these checks need native-speaker review. A Gujarati message shows Inconclusive, never Low.
+5. **Prepare your complaint** in Emergency Help: the checklist and template. Point out there are no boxes to type into.
+
+Say honestly: there is still no accuracy figure. `npm run eval:holdout` is ready, but needs a real held-out set.
 
 ## Optional: the website (2 minutes)
 

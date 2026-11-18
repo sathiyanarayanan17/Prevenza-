@@ -10,14 +10,18 @@
     "test:e2e:web": "node e2e/web.js",
     "web": "node scripts/serve-web.js",
     "ocr:assets": "node scripts/make-ocr-assets.js",
-    "audit:detection": "node scripts/detection-check.js"
+    "audit:detection": "node scripts/detection-check.js",
+    "eval:holdout": "node scripts/evaluate-holdout.js"
   },
   "devDependencies": {
     "@tesseract.js-data/eng": "1.0.0",
     "@tesseract.js-data/hin": "1.0.0",
     "@tesseract.js-data/tam": "1.0.0",
     "fast-check": "4.10.2",
+    "jsqr": "1.4.0",
     "playwright-core": "1.65.0",
+    "pngjs": "5.0.0",
+    "qrcode": "1.5.4",
     "tesseract.js": "7.0.0"
   }
 }

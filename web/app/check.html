@@ -132,7 +132,7 @@
         <div class="field wide">
           <label for="upi-qr">Decoded QR text (optional)</label>
           <textarea id="upi-qr" rows="2" maxlength="1000" spellcheck="false" autocomplete="off" placeholder="upi://pay?pa=name@bank&amp;pn=Name&amp;am=100" aria-describedby="upi-qr-help"></textarea>
-          <p class="muted small" id="upi-qr-help">Paste the text your QR scanner shows. Prevenza does not use your camera or scan your screen.</p>
+          <p class="muted small" id="upi-qr-help">Paste the text your QR scanner shows. Prevenza does not use your camera or scan your screen. Have a picture of the QR code? Choose it under <a href="#screenshot-check">Scan a screenshot</a>, and Prevenza reads the QR code in it too, on this device.</p>
         </div>
         <div class="btn-row wide">
           <button class="btn btn-primary" type="submit" id="upi-analyze" data-i18n="btn_analyze_payment">Analyze payment</button>
@@ -158,6 +158,10 @@
       </div>
       <div class="shot-preview" id="shot-preview" hidden>
         <img id="shot-img" alt="Preview of the screenshot you chose">
+      </div>
+      <div class="qr-found" id="shot-qr" hidden>
+        <p class="small" id="shot-qr-text" role="status" aria-live="polite"></p>
+        <button class="btn" type="button" id="shot-qr-use" hidden></button>
       </div>
       <div class="btn-row">
         <button class="btn btn-primary" type="button" id="shot-analyze" data-i18n="btn_read_shot" disabled>Read and check screenshot</button>
@@ -234,7 +238,9 @@
   <script src="../../src/shared/risk-result.js"></script>
   <script src="../js/check-page.js"></script>
   <script src="../../src/dashboard/message-check.js"></script>
+  <script src="../../src/shared/qr-text.js"></script>
   <script src="../../src/dashboard/upi-check.js"></script>
+  <script src="../../src/dashboard/qr-reader.js"></script>
   <script src="../../src/dashboard/ocr-runner.js"></script>
   <script src="../../src/dashboard/screenshot-check.js"></script>
 </body>

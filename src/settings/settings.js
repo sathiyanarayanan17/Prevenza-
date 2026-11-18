@@ -9,6 +9,7 @@
     enabled: $("enabled"),
     elderMode: $("elderMode"),
     showAssistantBadge: $("showAssistantBadge"),
+    pageWarnings: $("pageWarnings"),
     language: $("language"),
     sensitivity: $("sensitivity"),
     sensHelp: $("sens-help"),
@@ -55,6 +56,7 @@
     el.enabled.checked = settings.enabled;
     el.elderMode.checked = settings.elderMode;
     el.showAssistantBadge.checked = settings.showAssistantBadge;
+    el.pageWarnings.checked = settings.pageWarnings;
     el.language.value = settings.language;
     el.sensitivity.value = settings.sensitivity;
     const level = H.SENSITIVITY.find((s) => s.id === settings.sensitivity);
@@ -79,6 +81,7 @@
   el.enabled.addEventListener("change", () => save({ enabled: el.enabled.checked }));
   el.elderMode.addEventListener("change", () => save({ elderMode: el.elderMode.checked }));
   el.showAssistantBadge.addEventListener("change", () => save({ showAssistantBadge: el.showAssistantBadge.checked }));
+  el.pageWarnings.addEventListener("change", () => save({ pageWarnings: el.pageWarnings.checked }));
   el.language.addEventListener("change", () => save({ language: el.language.value }));
   el.sensitivity.addEventListener("change", () => save({ sensitivity: el.sensitivity.value }));
 

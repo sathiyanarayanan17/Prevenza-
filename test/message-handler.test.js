@@ -183,3 +183,44 @@ test("shared constants for the checker are sane", () => {
   assert.ok(C.MESSAGE_LIMITS.maxAnalysed <= C.MESSAGE_LIMITS.maxInput);
   assert.equal(C.MESSAGE_LIMITS.maxAnalysed, require("../src/shared/message-rules.js").LIMITS.maxChars, "the page limit and the scanner limit agree");
 });
+
+// A message mostly in a language the rules cannot read must never come back as "low risk".
+test("a message in a language Prevenza cannot read is INCONCLUSIVE, not LOW, and says why", async () => {
+  const { bg } = setup();
+  for (const text of [
+    "તમારું ખાતું આજે બંધ થઈ જશે. હમણાં જ OTP મોકલો", // Gujarati
+    "ਤੁਹਾਡਾ ਖਾਤਾ ਅੱਜ ਬੰਦ ਹੋ ਜਾਵੇਗਾ। ਹੁਣੇ OTP ਭੇਜੋ", // Punjabi (Gurmukhi)
+    "ଆପଣଙ୍କ ଖାତା ଆଜି ବନ୍ଦ ହୋଇଯିବ। ଏବେ OTP ପଠାନ୍ତୁ", // Odia
+    "مرحبا أرسل رمز OTP الآن", // Arabic
+    "Отправьте код OTP сейчас, иначе счёт будет заблокирован", // Russian
+  ]) {
+    const r = await bg.handle(scanMsg(text), PAGE);
+    assert.equal(r.ok, true);
+    assert.equal(r.result.assessment.category, "INCONCLUSIVE", text);
+    assert.equal(r.result.assessment.score, null);
+    assert.equal(r.result.unsupportedScript, true);
+    assert.match(r.result.languageNote, /cannot read yet/);
+    assert.ok(r.result.assessment.unavailableModules.some((m) => m.id === "message" && /cannot read/.test(m.reason)));
+    assert.equal(r.result.shortText, false, "an unreadable message is not described as 'very short'");
+  }
+});
+
+test("an unreadable-language message with a dangerous link still warns about the link; a harmless link does not make it LOW", async () => {
+  const { bg } = setup();
+  const bad = await bg.handle(scanMsg("તમારું ખાતું આજે બંધ થઈ જશે, હમણાં જ અહીં ક્લિક કરો http://185.23.4.1/kyc"), PAGE);
+  assert.ok(["HIGH", "CRITICAL", "MEDIUM"].includes(bad.result.assessment.category), bad.result.assessment.category);
+  const ok = await bg.handle(scanMsg("તમારું ખાતું આજે બંધ થઈ જશે, હમણાં જ અહીં ક્લિક કરો https://www.google.com"), PAGE);
+  assert.equal(ok.result.assessment.category, "INCONCLUSIVE");
+});
+
+test("supported languages, emoji and accented English are unaffected by the unreadable-language rule", async () => {
+  const { bg } = setup();
+  for (const text of ["Hi Amma, I will reach home by 7 pm.", "Café meeting at 5? Ça va", "नमस्ते, कल मिलते हैं", "நாளை காலை கோவிலுக்குப் போகலாம்", "😀😀😀", "Your OTP is 123456 – ঢাকা"]) {
+    const r = await bg.handle(scanMsg(text), PAGE);
+    assert.equal(r.result.unsupportedScript, false, text);
+    assert.equal(r.result.assessment.category, "LOW", text);
+  }
+  // a scam in English with a few letters of another script is still caught
+  const mixed = await bg.handle(scanMsg("તમારું ખાતું. Share the OTP now with me, your account will be blocked today"), PAGE);
+  assert.ok(["HIGH", "CRITICAL"].includes(mixed.result.assessment.category));
+});

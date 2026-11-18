@@ -7,7 +7,8 @@
     "build": "node ../scripts/build-mobile.js",
     "sync": "node ../scripts/build-mobile.js && cap sync android",
     "open": "cap open android",
-    "apk": "node ../scripts/build-mobile.js && cap sync android && cd android && gradlew.bat assembleDebug"
+    "apk": "node ../scripts/build-mobile.js && cap sync android && cd android && .\\gradlew.bat assembleDebug",
+    "apk:release": "node ../scripts/build-mobile.js && cap sync android && cd android && .\\gradlew.bat assembleRelease"
   },
   "dependencies": {
     "@capacitor/android": "8.6.2",

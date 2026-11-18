@@ -35,6 +35,7 @@
     SCAN_MESSAGE: "prevenza/scan-message", // dashboard -> background: text the user pasted into the message checker
     ANALYZE_UPI: "prevenza/analyze-upi", // dashboard -> background: payment details the user typed into the UPI analyzer
     ANALYZE_SCREENSHOT: "prevenza/analyze-screenshot", // dashboard -> background: text that OCR read from a screenshot the user chose
+    CHECK_PAGE: "prevenza/check-page", // content script -> background (Step 12): the site name and protocol of the page that opened, nothing else
     RECORD_SCAN: "prevenza/record-scan", // dashboard -> background: add one to the counter for a risk category (the category only, nothing else)
   });
 
@@ -71,10 +72,17 @@
     Object.freeze({ id: "ta", label: "\u0BA4\u0BAE\u0BBF\u0BB4\u0BCD (Tamil)" }),
   ]);
 
+  // Step 12: which central-engine categories show the page warning, for each sensitivity. Never LOW or INCONCLUSIVE.
+  const PAGE_WARNING_LEVELS = Object.freeze({
+    relaxed: Object.freeze(["CRITICAL"]),
+    balanced: Object.freeze(["HIGH", "CRITICAL"]),
+    strict: Object.freeze(["MEDIUM", "HIGH", "CRITICAL"]),
+  });
+
   const SENSITIVITY = Object.freeze([
-    Object.freeze({ id: "relaxed", label: "Relaxed", help: "Only the clearest scams. Fewest interruptions." }),
-    Object.freeze({ id: "balanced", label: "Balanced", help: "A sensible middle. Recommended." }),
-    Object.freeze({ id: "strict", label: "Strict", help: "Warns early. More interruptions." }),
+    Object.freeze({ id: "relaxed", label: "Relaxed", help: "Warns before a website only for the clearest scams. Fewest interruptions." }),
+    Object.freeze({ id: "balanced", label: "Balanced", help: "Warns before a website with strong scam signs. Recommended." }),
+    Object.freeze({ id: "strict", label: "Strict", help: "Also warns before websites with fewer warning signs. More interruptions, and sometimes a real site." }),
   ]);
 
   // The risk scale the interface shows. "pill" is the style name. Results from the URL checker use low / medium / high.
@@ -91,10 +99,11 @@
     language: "en",
     sensitivity: "balanced",
     showAssistantBadge: false, // silent by default: the assistant never appears unless asked
+    pageWarnings: true, // Step 12: a full-page warning before a website whose name has strong scam signs (never for ordinary sites)
     mutedSites: Object.freeze([]),
   });
 
   const LIMITS = Object.freeze({ maxMutedSites: 200, maxCounter: 1000000000 });
 
-  return { BRAND, MSG, STORAGE_KEYS, SCHEMA_VERSION, LANGUAGES, SCAN_LANGUAGES, MESSAGE_LIMITS, UPI_LIMITS, SCREENSHOT_LIMITS, SENSITIVITY, RISK_LEVELS, DEFAULT_SETTINGS, LIMITS };
+  return { BRAND, MSG, STORAGE_KEYS, SCHEMA_VERSION, LANGUAGES, SCAN_LANGUAGES, MESSAGE_LIMITS, UPI_LIMITS, SCREENSHOT_LIMITS, SENSITIVITY, PAGE_WARNING_LEVELS, RISK_LEVELS, DEFAULT_SETTINGS, LIMITS };
 });

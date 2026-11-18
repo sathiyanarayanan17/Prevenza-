@@ -68,6 +68,7 @@
     else if (item.kind === "image" && typeof item.base64 === "string" && /^image\/(png|jpeg)$/.test(item.mime)) showImage(item);
     else if (item.kind === "unsupported") say("Prevenza reads PNG and JPEG screenshots, or text.", "error");
     else if (item.kind === "too-large") say("That image is too large. Choose one under 8 MB.", "error");
+    else if (item.kind === "unreadable") say("Prevenza could not open the shared image. Save it, then choose it with Choose a screenshot.", "error");
   }
 
   take();

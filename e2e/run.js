@@ -9,6 +9,7 @@ const os = require("os");
 const ET = require("../src/shared/elder-text.js");
 const I18N = require("../src/shared/i18n.js");
 const E9 = require("../src/shared/emergency.js");
+const QR = require("qrcode");
 
 const EXT = path.join(__dirname, "..");
 const SHOTS = path.join(__dirname, "shots");
@@ -40,7 +41,8 @@ const server = http
   const ctx = await chromium.launchPersistentContext(userData, {
     headless: false,
     viewport: { width: 1100, height: 800 },
-    args: [`--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`, "--no-first-run"],
+    // Step 12: two scam-like site names are answered by the local test server, so the page warning can be checked.
+    args: [`--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`, "--no-first-run", "--host-resolver-rules=MAP sbi-kyc-update.xyz 127.0.0.1, MAP sbi.co.in.verify-account.xyz 127.0.0.1"],
   });
 
   const errors = [];
@@ -704,7 +706,7 @@ const server = http
     check("content script still reports only the site name on a look-alike page", await sw.evaluate(async () => {
       const tabs = await chrome.tabs.query({});
       for (const t of tabs) {
-        try { const r = await chrome.tabs.sendMessage(t.id, { type: "prevenza/get-tab-status" }); if (r && r.hostname === "sbi-kyc-update.xyz") return Object.keys(r).sort().join() === "badgeVisible,enabled,hostname,muted,protocol,ready,ok".split(",").sort().join(); } catch (e) { /* no content script */ }
+        try { const r = await chrome.tabs.sendMessage(t.id, { type: "prevenza/get-tab-status" }); if (r && r.hostname === "sbi-kyc-update.xyz") return Object.keys(r).sort().join() === "badgeVisible,enabled,hostname,muted,protocol,ready,ok,warningVisible".split(",").sort().join(); } catch (e) { /* no content script */ }
       }
       return false;
     }));
@@ -1057,7 +1059,7 @@ const server = http
     // -- Elder Mode never stores what was checked, and never asks for or keeps contact details
     const e8Stored = JSON.stringify(await sw.evaluate(() => chrome.storage.local.get(null)));
     check("Elder Mode stores only settings, counters and the schema number (no scans, no contacts, no dismissals)", Object.keys(JSON.parse(e8Stored)).every((k) => ["prevenza.schema", "prevenza.settings", "prevenza.stats"].includes(k)) && !/sbi-kyc|otp|lucky|upi|shop@|\+91|family|contact|phone|trusted/i.test(e8Stored.replace(/"showAssistantBadge"|"sensitivity"/g, "")), Object.keys(JSON.parse(e8Stored)).join(", "));
-    check("Elder Mode: the only settings keys are the existing ones (no new data was introduced)", Object.keys(await storedSettings()).sort().join(",") === "elderMode,enabled,language,mutedSites,sensitivity,showAssistantBadge");
+    check("Elder Mode: the only settings keys are the existing ones (no new data was introduced)", Object.keys(await storedSettings()).sort().join(",") === "elderMode,enabled,language,mutedSites,pageWarnings,sensitivity,showAssistantBadge");
     check("Elder Mode: no page asks for a phone number or contact (no tel, email or contact fields anywhere in the guide or settings)", (await dash.$$eval("input[type=tel], input[type=email], input[name*=phone i], input[name*=contact i]", (n) => n.length)) === 0 && (await settings.$$eval("input[type=tel], input[type=email], input[name*=phone i], input[name*=contact i]", (n) => n.length)) === 0);
     check("Elder Mode: the new pages made no network requests", step8Requests.every((u) => u.startsWith("chrome-extension://") || u.startsWith("data:")), step8Requests.length + " local requests");
 
@@ -1370,7 +1372,7 @@ const server = http
     check("Privacy: after using Emergency Help, storage still has only the settings, counters and schema number", keysAfter9 === storageKeysBefore9 && Object.keys(storageAfter9).every((k) => ["prevenza.schema", "prevenza.settings", "prevenza.stats"].includes(k)), keysAfter9);
     const blob = JSON.stringify(storageAfter9);
     check("Privacy: nothing about the chosen situations, the helpline or the portal was stored", !/otp_pin|fake_kyc|fake_receipt|cybercrime|1930|emergency|incident/i.test(blob));
-    check("Privacy: settings keys are unchanged (no new setting was added for Emergency Help)", Object.keys(storageAfter9["prevenza.settings"]).sort().join(",") === "elderMode,enabled,language,mutedSites,sensitivity,showAssistantBadge");
+    check("Privacy: settings keys are unchanged (no new setting was added for Emergency Help)", Object.keys(storageAfter9["prevenza.settings"]).sort().join(",") === "elderMode,enabled,language,mutedSites,pageWarnings,sensitivity,showAssistantBadge");
     const m9 = await sw.evaluate(() => chrome.runtime.getManifest());
     check("Permissions: still only 'storage', no host permissions and no web-accessible resources", JSON.stringify(m9.permissions) === '["storage"]' && !m9.host_permissions && !m9.web_accessible_resources);
     check("Network: Emergency Help pages made no network request (the portal is only reached when the user presses its link)", step9Requests.every((u) => u.startsWith("chrome-extension://") || u.startsWith("data:")), step9Requests.filter((u) => !u.startsWith("chrome-extension://") && !u.startsWith("data:")).join(", ") || step9Requests.length + " local requests");
@@ -1699,7 +1701,7 @@ const server = http
     check("Privacy: storage still holds only settings, counters and the schema number", Object.keys(all10).every((k) => ["prevenza.schema", "prevenza.settings", "prevenza.stats"].includes(k)), Object.keys(all10).join(","));
     check("Privacy: nothing that was checked was stored (no address, message, UPI ID, name, amount or screenshot text)", !/sbi-kyc|digital arrest|CBI|refund\.helpdesk|Customer Care|4999|KYC has expired|lottery|Amma/i.test(blob10));
     check("Privacy: the statistics are only numbers and times", Object.entries(all10["prevenza.stats"]).every(([k, v]) => typeof v === "number" || v === null || /^\d{4}-\d\d-\d\dT[\d:.]+Z$/.test(v)), Object.keys(all10["prevenza.stats"]).join(","));
-    check("Privacy: the settings keys are unchanged", Object.keys(all10["prevenza.settings"]).sort().join(",") === "elderMode,enabled,language,mutedSites,sensitivity,showAssistantBadge");
+    check("Privacy: the settings keys are unchanged", Object.keys(all10["prevenza.settings"]).sort().join(",") === "elderMode,enabled,language,mutedSites,pageWarnings,sensitivity,showAssistantBadge");
     const m10 = await sw.evaluate(() => chrome.runtime.getManifest());
     check("Permissions: still only 'storage', no host permissions", JSON.stringify(m10.permissions) === '["storage"]' && !m10.host_permissions && !m10.optional_permissions);
     check("Network: the unified dashboard made no network request", step10Requests.every((u) => u.startsWith("chrome-extension://") || u.startsWith("data:") || u.startsWith("blob:") || u === "about:blank"), step10Requests.filter((u) => !/^(chrome-extension|data|blob):|^about:blank$/.test(u)).join(", ") || step10Requests.length + " local requests");
@@ -1843,8 +1845,162 @@ const server = http
     check("Step 11 pages made no network requests", step11Requests.every((u) => /^(chrome-extension|data|blob):/.test(u)), step11Requests.filter((u) => !/^(chrome-extension|data|blob):/.test(u)).join(", ") || step11Requests.length + " local requests");
     const all11 = JSON.stringify(await sw.evaluate(() => chrome.storage.local.get(null)));
     check("Step 11: nothing from the performance or OCR runs was stored", !/KYC|OTP|paytrn|refund\.helpdesk|aaaaaaaaaa/.test(all11));
-    const finalScanTotal = (await st10()).scansTotal;
+    let finalScanTotal = (await st10()).scansTotal; // updated after the Step 12 checks below
     await d11.close();
+
+    // ---- 7e. Step 12: warning before a risky website, QR codes in screenshots, the complaint helper, new rules and languages
+    {
+      const getStats12 = async () => (await sw.evaluate(() => chrome.storage.local.get("prevenza.stats")))["prevenza.stats"];
+      const sp = await ctx.newPage();
+      watch(sp, "settings12");
+      await sp.goto(URL_SETTINGS);
+      await sp.waitForSelector("#pageWarnings", { state: "attached" });
+      await sleep(400);
+      check("Step 12 settings: 'Warn me before a risky website' is there and on by default", await sp.isChecked("#pageWarnings"));
+      if (!(await sp.isChecked("#enabled"))) await sp.click("#enabled", { force: true });
+      await sp.selectOption("#sensitivity", "balanced");
+      await sleep(400);
+      check("Step 12 settings: the sensitivity help now describes the page warning", /warns before a website|warns before a risky website/i.test(await sp.textContent("#sens-help")), await sp.textContent("#sens-help"));
+
+      const warnState = (pg) => pg.evaluate(() => {
+        const h = document.getElementById("prevenza-warning-host");
+        if (!h) return null;
+        const r = h.shadowRoot;
+        return {
+          title: r.querySelector("h2").textContent, host: r.querySelector(".host").textContent, pill: r.querySelector(".pill").textContent,
+          reasons: r.querySelectorAll("li").length, buttons: [...r.querySelectorAll("button")].map((b) => b.textContent),
+          focus: r.activeElement ? r.activeElement.textContent : "", role: r.querySelector(".box").getAttribute("role"),
+          elder: r.querySelector(".box").getAttribute("data-elder"), text: r.querySelector(".box").textContent,
+        };
+      });
+      const waitWarn = (pg) => pg.waitForFunction(() => !!document.getElementById("prevenza-warning-host"), null, { timeout: 8000 }).catch(() => null);
+      const before12 = (await getStats12()).warningsShown;
+      const risky = "http://sbi-kyc-update.xyz:" + port + "/";
+      const rp = await ctx.newPage();
+      watch(rp, "risky-site");
+      await rp.goto(site);
+      await rp.goto(risky);
+      await waitWarn(rp);
+      const w = await warnState(rp);
+      check("Step 12: a website whose name has strong scam signs is covered by a warning", !!w && /may be a scam/.test(w.title) && w.host === "sbi-kyc-update.xyz" && /High risk|Critical risk/.test(w.pill) && w.reasons >= 1 && w.role === "alertdialog", JSON.stringify(w && { title: w.title, host: w.host, pill: w.pill, reasons: w.reasons }));
+      check("Step 12: the warning offers Go back and Continue anyway, with Go back focused", !!w && w.buttons.join("|") === "Go back|Continue anyway" && w.focus === "Go back", w && w.buttons.join("|") + " focus=" + w.focus);
+      check("Step 12: the warning says only the name was checked, and never calls anything safe", !!w && /checked only the name/.test(w.text) && !/\bsafe\b/i.test(w.text));
+      await sleep(400); // let the short fade-in finish
+      await rp.screenshot({ path: path.join(SHOTS, "29-page-warning.png") });
+      check("Step 12: the warning is counted, as a number only", (await getStats12()).warningsShown === before12 + 1);
+      const pwBefore = await rp.inputValue("#pw");
+      await rp.evaluate(() => document.getElementById("prevenza-warning-host").shadowRoot.querySelector(".go").click());
+      await sleep(300);
+      check("Step 12: Continue anyway removes the warning and leaves the page untouched", (await rp.evaluate(() => !document.getElementById("prevenza-warning-host"))) && pwBefore === "hunter2-SECRET" && (await rp.inputValue("#pw")) === "hunter2-SECRET");
+      await rp.reload();
+      await waitWarn(rp);
+      await rp.evaluate(() => document.getElementById("prevenza-warning-host").shadowRoot.querySelector(".back").click());
+      await rp.waitForURL(site, { timeout: 8000 }).catch(() => null);
+      check("Step 12: Go back returns to the previous page", rp.url() === site, rp.url());
+      await sleep(800);
+      check("Step 12: an ordinary website gets no warning", await rp.evaluate(() => !document.getElementById("prevenza-warning-host")));
+
+      const crit = "http://sbi.co.in.verify-account.xyz:" + port + "/";
+      await rp.goto(crit);
+      await waitWarn(rp);
+      const wc = await warnState(rp);
+      check("Step 12: a bank name in front of another site gets a Critical warning", !!wc && /Critical risk/.test(wc.pill), wc && wc.pill);
+      await rp.setViewportSize({ width: 390, height: 760 });
+      await sleep(300);
+      const fits = await rp.evaluate(() => { const b = document.getElementById("prevenza-warning-host").shadowRoot.querySelector(".box").getBoundingClientRect(); return b.left >= 0 && b.right <= innerWidth + 1; });
+      check("Step 12: the warning fits a 390px phone screen", fits);
+      await rp.screenshot({ path: path.join(SHOTS, "30-page-warning-mobile.png") });
+      await rp.setViewportSize({ width: 1100, height: 800 });
+
+      // the setting and the quiet list switch it off, without a reload
+      await sp.click("#pageWarnings", { force: true });
+      await sleep(700);
+      check("Step 12: switching the setting off removes the warning from an open page", await rp.evaluate(() => !document.getElementById("prevenza-warning-host")));
+      await rp.goto(risky);
+      await sleep(2000);
+      check("Step 12: with the setting off, no warning appears", await rp.evaluate(() => !document.getElementById("prevenza-warning-host")));
+      await sp.click("#pageWarnings", { force: true });
+      await sleep(500);
+      check("Step 12: the setting is saved", (await sw.evaluate(() => chrome.storage.local.get("prevenza.settings")))["prevenza.settings"].pageWarnings === true);
+      const stored12 = JSON.stringify(await sw.evaluate(() => chrome.storage.local.get(null)));
+      check("Step 12: no risky site name is stored anywhere", !/sbi-kyc-update|verify-account/.test(stored12) && Object.keys(JSON.parse(stored12)).every((k) => ["prevenza.schema", "prevenza.settings", "prevenza.stats"].includes(k)));
+      await rp.close();
+      await sp.close();
+
+      // QR code inside a chosen screenshot, on the dashboard
+      const d12 = await ctx.newPage();
+      watch(d12, "dash12");
+      const d12Requests = [];
+      d12.on("request", (r) => d12Requests.push(r.url()));
+      await d12.goto(URL_DASH);
+      await d12.waitForSelector("#legend li");
+      const payload = "upi://pay?pa=refund.helpdesk@ybl&pn=Customer%20Care%20Refund&am=4999&tn=Pay%20to%20receive%20refund";
+      const qrFile = path.join(os.tmpdir(), "prevenza-qr-upi.png");
+      fs.writeFileSync(qrFile, await QR.toBuffer(payload, { width: 420, margin: 3 }));
+      check("Step 12: the UPI section still has no file picker, and points to the screenshot checker for QR pictures", (await d12.locator("#upi-check input[type=file]").count()) === 0 && /Scan a screenshot/.test(await d12.textContent("#upi-qr-help")));
+      await d12.setInputFiles("#shot-file", qrFile);
+      await d12.waitForSelector("#shot-qr:not([hidden])", { timeout: 15000 }).catch(() => null);
+      check("Step 12: a QR code in the chosen picture is found on the device", (await d12.isVisible("#shot-qr")) && /UPI payment QR code/.test(await d12.textContent("#shot-qr-text")) && (await d12.textContent("#shot-qr-use")) === "Check this QR payment");
+      await d12.click("#shot-qr-use");
+      await sleep(300);
+      check("Step 12: the button puts the QR text in the UPI checker, without checking it yet", (await d12.inputValue("#upi-qr")) === payload && (await d12.textContent("#upi-result")).trim() === "");
+      await d12.click("#upi-analyze");
+      await d12.waitForFunction(() => document.getElementById("upi-result").textContent.length > 0);
+      check("Step 12: the QR payment is then checked by the UPI checker (pay to receive a refund)", /(High|Critical) risk/.test(await d12.textContent("#upi-result")) && /refund\.helpdesk@ybl/.test(await d12.textContent("#upi-result")));
+      await d12.screenshot({ path: path.join(SHOTS, "31-qr-in-screenshot.png"), fullPage: true });
+      await d12.click("#shot-clear");
+      await sleep(200);
+      check("Step 12: Clear all hides the QR finding", !(await d12.isVisible("#shot-qr")));
+      const linkQr = path.join(os.tmpdir(), "prevenza-qr-link.png");
+      fs.writeFileSync(linkQr, await QR.toBuffer("http://sbi-kyc-update.xyz/login", { width: 360, margin: 3 }));
+      await d12.setInputFiles("#shot-file", linkQr);
+      await d12.waitForSelector("#shot-qr:not([hidden])", { timeout: 15000 }).catch(() => null);
+      await d12.click("#shot-qr-use");
+      check("Step 12: a QR code with a web address goes to the link checker", (await d12.inputValue("#link-input")) === "http://sbi-kyc-update.xyz/login");
+      await d12.click("#shot-clear");
+      const plainShot = path.join(os.tmpdir(), "prevenza-noqr.png");
+      fs.writeFileSync(plainShot, await d12.evaluate(async () => { const c = document.createElement("canvas"); c.width = 600; c.height = 160; const g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, 600, 160); g.fillStyle = "#111"; g.font = "28px Arial"; g.fillText("See you at the temple tomorrow.", 20, 80); const b = await new Promise((r) => c.toBlob(r, "image/png")); return Array.from(new Uint8Array(await b.arrayBuffer())); }).then((a) => Buffer.from(a)));
+      await d12.setInputFiles("#shot-file", plainShot);
+      await sleep(2500);
+      check("Step 12: a picture without a QR code shows no QR message", !(await d12.isVisible("#shot-qr")));
+      await d12.click("#shot-clear");
+
+      // new rules and languages through the real dashboard
+      const msg12 = async (text) => {
+        await d12.fill("#msg-input", text);
+        await d12.click("#msg-analyze");
+        await d12.waitForFunction(() => document.getElementById("msg-result").textContent.length > 0);
+        const t = await d12.textContent("#msg-result");
+        await d12.click("#msg-clear");
+        return t;
+      };
+      check("Step 12: a job/task scam message is flagged", /(High|Critical) risk/.test(await msg12("Earn Rs 3000 daily by liking YouTube videos. Pay Rs 500 registration fee to start today.")));
+      for (const [lang, text] of [["Telugu", "మీ ఖాతా ఈరోజు బ్లాక్ అవుతుంది. వెంటనే మీ OTP చెప్పండి"], ["Bengali", "আপনার অ্যাকাউন্ট আজ বন্ধ হয়ে যাবে। এখনই OTP পাঠান"], ["Kannada", "ನಿಮ್ಮ ಖಾತೆ ಇಂದು ಬ್ಲಾಕ್ ಆಗುತ್ತದೆ. ತಕ್ಷಣ ನಿಮ್ಮ OTP ಹೇಳಿ"], ["Malayalam", "നിങ്ങളുടെ അക്കൗണ്ട് ഇന്ന് ബ്ലോക്ക് ചെയ്യും. ഉടൻ OTP പറയൂ"]]) {
+        const t = await msg12(text);
+        check("Step 12: a " + lang + " OTP scam is flagged, with the review note", /(High|Critical) risk/.test(t) && /native speakers/.test(t), t.slice(0, 50));
+      }
+      const guj = await msg12("તમારું ખાતું આજે બંધ થઈ જશે. હમણાં જ OTP મોકલો");
+      check("Step 12: a Gujarati message is Inconclusive, never Low", /Inconclusive/.test(guj) && /cannot read yet/.test(guj) && !/Low risk/.test(guj));
+      await d12.fill("#link-input", "https://s\u014bbi.com/login");
+      await d12.click("#link-form button[type=submit]");
+      await d12.waitForFunction(() => document.getElementById("link-result").textContent.length > 0);
+      check("Step 12: a famous name with a hidden extra letter is Critical", /Critical risk/.test(await d12.textContent("#link-result")));
+      check("Step 12: the dashboard made no network requests (the QR reader is bundled)", d12Requests.every((u) => /^(chrome-extension|data|blob):/.test(u)) && d12Requests.some((u) => /vendor\/jsqr\/jsQR\.js$/.test(u)), d12Requests.filter((u) => !/^(chrome-extension|data|blob):/.test(u)).join(", "));
+      await d12.close();
+
+      // complaint helper in Emergency Help
+      const e12 = await ctx.newPage();
+      watch(e12, "emergency12");
+      await e12.goto(URL_EMG);
+      await e12.waitForSelector("#complaint-template");
+      await sleep(400);
+      const tpl = await e12.textContent("#complaint-template");
+      check("Step 12: Emergency Help has 'Prepare your complaint' with a checklist and a template", (await e12.textContent("#complaint-h")) === "Prepare your complaint" && (await e12.$$eval("#complaint-list li", (n) => n.length)) >= 4 && /Money lost:/.test(tpl) && /Their details:/.test(tpl));
+      check("Step 12: the complaint helper warns never to include an OTP, PIN or password, and has nothing to type into", /Never write your OTP, UPI PIN, passwords/.test(await e12.textContent("#complaint-never")) && (await e12.locator("#complaint-card input, #complaint-card textarea, #complaint-card [contenteditable]").count()) === 0);
+      await e12.locator("#complaint-card").screenshot({ path: path.join(SHOTS, "32-complaint-helper.png") });
+      await e12.close();
+      finalScanTotal = (await getStats12()).scansTotal;
+    }
 
     // ---- 8. no network from any extension page
     const all = [...popupRequests, ...settingsRequests, ...dashRequests];

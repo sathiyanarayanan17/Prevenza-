@@ -41,7 +41,7 @@
       <div class="row">
         <div class="row-text">
           <div class="row-title" id="sens-label">Sensitivity</div>
-          <p class="muted small" id="sens-help">How early Prevenza will warn once scam checking is added.</p>
+          <p class="muted small" id="sens-help">How early Prevenza warns before a risky website opens.</p>
         </div>
         <select id="sensitivity" aria-labelledby="sens-label"></select>
       </div>
@@ -62,6 +62,13 @@
           <p class="muted small">Off by default. Prevy never appears unless you want it.</p>
         </div>
         <label class="switch"><input type="checkbox" id="showAssistantBadge" role="switch" aria-label="Show the assistant badge on web pages"><span class="track"></span></label>
+      </div>
+      <div class="row">
+        <div class="row-text">
+          <div class="row-title">Warn me before a risky website</div>
+          <p class="muted small">On by default. When a website's name has strong scam signs, Prevenza covers the page with a warning first. Only the site name is checked, never the page. You can always continue.</p>
+        </div>
+        <label class="switch"><input type="checkbox" id="pageWarnings" role="switch" aria-label="Warn me before a risky website"><span class="track"></span></label>
       </div>
     </section>
 

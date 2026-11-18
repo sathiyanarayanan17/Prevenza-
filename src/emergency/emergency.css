@@ -42,3 +42,8 @@ html[data-elder="true"] .emg-back .btn { width: 100%; }
   .helpline-number { font-size: 1.7rem; }
   html[data-elder="true"] .helpline-number { font-size: 2.2rem; }
 }
+
+/* Step 12: prepare your complaint */
+.complaint-list { margin: 8px 0 0; padding-left: 22px; display: grid; gap: 6px; }
+.complaint-template { margin: 8px 0 0; padding: 12px 14px; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; line-height: 1.7; user-select: text; }
+.complaint-template:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }

@@ -81,6 +81,17 @@
       });
     }
 
+    /** Step 12: count one page warning that was shown. Only a number is stored, never which website it was. */
+    function recordWarningShown() {
+      return enqueue(async () => {
+        const stats = await getStats();
+        stats.warningsShown += 1;
+        const next = H.sanitizeStats(stats);
+        await area.set({ [K.stats]: next });
+        return next;
+      });
+    }
+
     /** First run: write defaults if nothing is stored yet. */
     function init() {
       return enqueue(async () => {
@@ -120,7 +131,7 @@
       });
     }
 
-    return { getSettings, getStats, saveSettings, recordPageSeen, recordScan, init, resetStats, resetSettings, selfTest };
+    return { getSettings, getStats, saveSettings, recordPageSeen, recordScan, recordWarningShown, init, resetStats, resetSettings, selfTest };
   }
 
   return { createStore };

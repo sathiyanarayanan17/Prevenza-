@@ -55,6 +55,7 @@
       language: C.LANGUAGES.some((l) => l.id === src.language) ? src.language : d.language,
       sensitivity: C.SENSITIVITY.some((s) => s.id === src.sensitivity) ? src.sensitivity : d.sensitivity,
       showAssistantBadge: typeof src.showAssistantBadge === "boolean" ? src.showAssistantBadge : d.showAssistantBadge,
+      pageWarnings: typeof src.pageWarnings === "boolean" ? src.pageWarnings : d.pageWarnings,
       mutedSites: muted,
     };
   }

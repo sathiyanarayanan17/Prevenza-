@@ -428,3 +428,38 @@ test("PROPERTY: the result is the same every time (deterministic)", () => {
     { numRuns: 150 }
   );
 });
+
+// Look-alike names the brand list missed before: a doubled letter in a short bank name, a sound-alike spelling,
+// and an unusual letter slipped into a famous name.
+test("a short brand name with one letter typed twice is a misspelling (sbii, hdffc, icicci, axxis)", () => {
+  for (const url of ["https://sbii-bank.com", "https://sbbi.co/login", "https://hdffc-netbanking.com", "https://icicci-bank.in", "https://axxis-bank.top"]) {
+    const r = U.analyzeUrl(url);
+    assert.ok(r.indicators.some((i) => i.id === "brand_typosquat"), url + ": " + r.indicators.map((i) => i.id).join(","));
+    assert.notEqual(r.level, "low", url);
+  }
+});
+
+test("PhonePe spelled the way it sounds is flagged", () => {
+  for (const url of ["https://phonepay-help.com", "https://fonepe.in/kyc"]) {
+    const r = U.analyzeUrl(url);
+    assert.ok(r.indicators.some((i) => i.id === "brand_typosquat" && /sounds/.test(i.label)), url);
+  }
+  assert.equal(U.analyzeUrl("https://www.phonepe.com/").level, "low");
+});
+
+test("an unusual letter slipped into a famous name is a look-alike (sŋbi.com, in punycode too)", () => {
+  for (const url of ["https://xn--sbi-ixa.com", "https://s\u014bbi.com"]) {
+    const r = U.analyzeUrl(url);
+    const hit = r.indicators.find((i) => i.id === "homograph_whole");
+    assert.ok(hit && hit.critical, url + ": " + r.indicators.map((i) => i.id).join(","));
+    assert.match(hit.label, /SBI/);
+  }
+});
+
+test("the new look-alike checks leave unrelated and international names alone", () => {
+  for (const url of ["https://sbs.com", "https://bbc.com", "https://sbin.in", "https://snbi.com", "https://sbis.org", "https://icic.org",
+    "https://appleby.com", "https://boob.org", "https://m\u00fcnchen.de", "https://caf\u00e9.com", "https://b\u00fccher.de"]) {
+    const r = U.analyzeUrl(url);
+    assert.ok(!r.indicators.some((i) => ["brand_typosquat", "homograph_whole"].includes(i.id)), url + ": " + r.indicators.map((i) => i.id).join(","));
+  }
+});

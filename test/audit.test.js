@@ -109,7 +109,7 @@ test("engine: every checker in the background worker is scored by the one engine
 // These are not accuracy claims (see scripts/detection-check.js). They stop silent regressions:
 //   - no ordinary or legitimate example may start raising a warning
 //   - no new scam example may start being missed (the known misses are listed and reported)
-const KNOWN_MISSES = ["message job scam"];
+const KNOWN_MISSES = []; // the job/task scam miss was fixed; any new miss now fails
 
 test("detection spot-check: no false positives on the legitimate and ordinary examples", () => {
   const { rows } = detection.run();

@@ -179,6 +179,21 @@
     $("report-more").open = !elder;
   }
 
+  // ---- Step 12: what to write down before reporting (read-only text; the user selects and copies it themselves)
+  function buildComplaint() {
+    const C = E.COMPLAINT;
+    const elder = isElder();
+    $("complaint-h").textContent = C.heading;
+    $("complaint-intro").textContent = elder ? C.introElder : C.intro;
+    const list = $("complaint-list");
+    list.textContent = "";
+    (elder ? C.elderItems : C.items).forEach((t) => list.appendChild(el("li", null, t)));
+    $("complaint-never").textContent = C.never;
+    $("complaint-template-h").textContent = C.templateHeading;
+    $("complaint-template").textContent = C.template.join("\n");
+    $("complaint-help").textContent = C.templateHelp;
+  }
+
   async function copyHelpline() {
     let ok = false;
     try {
@@ -220,6 +235,7 @@
 
     buildPicker();
     buildReport();
+    buildComplaint();
     buildTrust(language);
     $("copy-helpline").addEventListener("click", copyHelpline);
     window.addEventListener("hashchange", handleHash);

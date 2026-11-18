@@ -29,7 +29,7 @@ test("every rule is well formed and every pattern compiles", () => {
     assert.ok(s.label.length > 5 && s.why.length > 20, s.id + " needs plain-language text");
     assert.ok(Array.isArray(s.categories) && s.categories.every((c) => R.CATEGORIES.some((k) => k.id === c)), s.id + " categories");
     for (const [set, list] of Object.entries(s.patterns)) {
-      assert.ok(["en", "hi", "ta", "hr", "tr"].includes(set), s.id + " unknown set " + set);
+      assert.ok(["en", "hi", "ta", "hr", "tr", "te", "bn", "kn", "ml"].includes(set), s.id + " unknown set " + set);
       for (const src of list) assert.doesNotThrow(() => new RegExp(src, "gu"), s.id + "/" + set);
     }
     if (s.negate) for (const k of ["before", "after"]) if (s.negate[k]) assert.doesNotThrow(() => new RegExp(s.negate[k], "u"), s.id + " negate " + k);
@@ -43,9 +43,9 @@ test("every warning sign has patterns for English, Hindi script and Tamil script
 });
 
 test("the ten requested scam kinds all exist as categories", () => {
-  const wanted = ["fake_kyc", "digital_arrest", "parcel_fee", "otp_pin", "account_suspension", "prize", "customer_care", "urgent_transfer", "impersonation", "payment_instruction"];
+  const wanted = ["fake_kyc", "digital_arrest", "parcel_fee", "otp_pin", "account_suspension", "prize", "customer_care", "urgent_transfer", "impersonation", "payment_instruction", "job_task"];
   for (const id of wanted) assert.ok(R.CATEGORIES.some((c) => c.id === id), id);
-  assert.equal(R.CATEGORIES.length, 10);
+  assert.equal(R.CATEGORIES.length, 11);
 });
 
 test("rule ids work with the risk engine (ids accepted, hints reachable)", () => {
@@ -472,4 +472,119 @@ test("the scan result holds no copy of the message", () => {
   const text = JSON.stringify(r);
   assert.ok(!text.includes("ZQXJ") && !text.includes("7781"));
   assert.ok(!JSON.stringify(assess(r)).includes("ZQXJ"));
+});
+
+// Real Hindi and Tamil SMS usually write "OTP", "PIN" and "CVV" in English letters inside the native script.
+const otpFound = (risk) => risk.evidence.some((e) => e.id === "msg_otp_request" && e.points > 0);
+
+test("Hindi and Tamil: an OTP or PIN request is found when OTP or PIN is written in English letters", () => {
+  for (const text of [
+    "कृपया अपना OTP बताएं",
+    "आपका खाता आज बंद हो जाएगा। OTP भेजें",
+    "अपना UPI PIN बताइए, रिफंड मिलेगा",
+    "உங்கள் OTP எண்ணை சொல்லுங்கள்",
+    "வங்கி: உங்கள் கணக்கு இன்று முடக்கப்படும். OTP அனுப்புங்கள்",
+    "OTP-ஐ உடனே பகிரவும்",
+  ]) {
+    const { risk } = run(text);
+    assert.ok(otpFound(risk), "the OTP request should be found in: " + text);
+    atLeast(risk, "MEDIUM");
+  }
+});
+
+test("Tamil: the negative verb ending (-ாத-, as in சொல்லாதீர்கள்) means 'do not share', so it is not a warning", () => {
+  for (const text of [
+    "ஓடிபி யாருக்கும் சொல்லாதீர்கள்",
+    "உங்கள் OTP-ஐ யாருக்கும் அனுப்பாதீர்கள்.",
+    "OTP-ஐ யாரிடமும் கொடுக்காதீர்கள்",
+    "OTP பகிராதே",
+    "123456 உங்கள் OTP. இதை யாரிடமும் சொல்ல வேண்டாம்.",
+    "123456 आपका OTP है। इसे किसी से साझा न करें।",
+    "OTP किसी के साथ शेयर मत करें",
+    "आपका पिन कोड 600001 है, पार्सल भेज दिया गया",
+  ]) {
+    const { risk } = run(text);
+    assert.ok(!otpFound(risk), "a 'do not share' message must not count as an OTP request: " + text);
+    assert.equal(risk.category, "LOW", text);
+  }
+  // the positive Tamil forms still count
+  for (const text of ["ஓடிபி கொடுங்கள்", "உங்கள் ஓடிபி எண்ணை சொல்லுங்கள்", "OTP அனுப்புங்கள்"]) assert.ok(otpFound(run(text).risk), text);
+});
+
+// Fake jobs, tasks and easy money: the spot-check's one known miss, now caught without flagging ordinary job or pay messages.
+test("job and task scams are found in English, Hindi, Hinglish and Tamil", () => {
+  const scams = [
+    "Earn Rs 3000 daily by liking YouTube videos. Pay Rs 500 registration fee to start today.",
+    "Part time job! Like YouTube videos and earn ₹150 per video. Contact on WhatsApp.",
+    "Work from home job, earn 5000 per day, simple tasks, join now",
+    "Complete the prepaid task to withdraw your commission",
+    "Deposit Rs 2000 to unlock your earnings and complete level 3 tasks",
+    "घर बैठे रोज़ 3000 रुपये कमाएं, रजिस्ट्रेशन फीस सिर्फ 500 रुपये, आज ही काम शुरू करें",
+    "Ghar baithe roz 2000 kamao, sirf YouTube videos like karo",
+    "வீட்டிலிருந்தே தினமும் 2000 சம்பாதிக்கலாம், பதிவு கட்டணம் 300 மட்டும், வேலை இன்றே தொடங்குங்கள்",
+  ];
+  for (const text of scams) {
+    const { scan: r, risk } = run(text);
+    assert.ok(ids(r).some((id) => id === "msg_easy_earning" || id === "msg_task_fee"), "job signal expected: " + text);
+    atLeast(risk, "MEDIUM");
+  }
+  const { scan: both, risk } = run(scams[0]);
+  assert.equal(both.primaryCategory.id, "job_task");
+  atLeast(risk, "HIGH");
+  assert.ok(risk.actions.some((a) => /never asks you to pay to get a job/.test(a)), "the job advice appears when a job sign is found");
+});
+
+test("ordinary job, salary, reward-point and deposit messages are not called job scams", () => {
+  for (const text of [
+    "Your salary of Rs 52,000 for October has been credited to A/c XX1234.",
+    "We are hiring a software engineer in Chennai. Apply on our careers page.",
+    "Earn 2 reward points for every Rs 100 you spend on your card.",
+    "Please like and share my new YouTube video!",
+    "The security deposit for the flat is two months rent.",
+    "Your exam registration fee receipt is attached.",
+    "I get paid daily at my shop job, it is fine Amma.",
+    "Interview scheduled for Monday 10 am. No fees are charged at any stage.",
+  ]) {
+    const { scan: r, risk } = run(text);
+    assert.ok(!ids(r).some((id) => id === "msg_easy_earning" || id === "msg_task_fee"), "no job signal expected: " + text);
+    assert.equal(risk.category, "LOW", text);
+  }
+});
+
+// Step 12: the most common scam signs in Telugu, Bengali, Kannada and Malayalam, and Marathi words in the Devanagari set.
+test("Telugu, Bengali, Kannada, Malayalam and Marathi: OTP, KYC, blocked-account and digital-arrest scams are found", () => {
+  const cases = [
+    ["te", "మీ ఖాతా ఈరోజు బ్లాక్ అవుతుంది. వెంటనే మీ OTP చెప్పండి", "HIGH"],
+    ["te", "మీ కేవైసీ అప్డేట్ పెండింగ్‌లో ఉంది, మీ ఓటీపీ పంపండి", "HIGH"],
+    ["te", "మీరు డిజిటల్ అరెస్ట్ లో ఉన్నారు", "CRITICAL"],
+    ["bn", "আপনার অ্যাকাউন্ট আজ বন্ধ হয়ে যাবে। এখনই OTP পাঠান", "HIGH"],
+    ["bn", "আপনার কেওয়াইসি আপডেট বাকি আছে, ওটিপি বলুন", "HIGH"],
+    ["bn", "আপনি ডিজিটাল অ্যারেস্ট এ আছেন", "CRITICAL"],
+    ["kn", "ನಿಮ್ಮ ಖಾತೆ ಇಂದು ಬ್ಲಾಕ್ ಆಗುತ್ತದೆ. ತಕ್ಷಣ ನಿಮ್ಮ OTP ಹೇಳಿ", "HIGH"],
+    ["kn", "ನಿಮ್ಮ ಕೆವೈಸಿ ಅಪ್‌ಡೇಟ್ ಬಾಕಿ ಇದೆ, ಒಟಿಪಿ ಕಳುಹಿಸಿ", "HIGH"],
+    ["ml", "നിങ്ങളുടെ അക്കൗണ്ട് ഇന്ന് ബ്ലോക്ക് ചെയ്യും. ഉടൻ OTP പറയൂ", "HIGH"],
+    ["ml", "നിങ്ങളുടെ കെവൈസി അപ്ഡേറ്റ് ചെയ്യണം, ഒടിപി അയയ്ക്കൂ", "HIGH"],
+    ["hi", "तुमचे खाते आज बंद होईल. ताबडतोब तुमचा OTP सांगा", "HIGH"], // Marathi
+    ["hi", "तुमचा ओटीपी पाठवा, केवायसी अपडेट करा", "HIGH"], // Marathi
+  ];
+  for (const [lang, text, level] of cases) {
+    const { scan: r, risk } = run(text);
+    assert.equal(r.language.id, lang, text);
+    atLeast(risk, level);
+  }
+});
+
+test("Telugu, Bengali, Kannada, Malayalam and Marathi: 'do not share' messages and ordinary text stay LOW, with a review note", () => {
+  for (const text of [
+    "మీ OTP 123456. దీన్ని ఎవరికీ చెప్పకండి.", "రేపు ఉదయం గుడికి వెళ్దాం.",
+    "আপনার OTP 123456। এটি কাউকে বলবেন না।", "কাল সকালে মন্দিরে যাব।", "OTP কারও সাথে শেয়ার করবেন না",
+    "ನಿಮ್ಮ OTP 123456. ಇದನ್ನು ಯಾರಿಗೂ ಹೇಳಬೇಡಿ.", "ನಾಳೆ ಬೆಳಿಗ್ಗೆ ದೇವಸ್ಥಾನಕ್ಕೆ ಹೋಗೋಣ.",
+    "നിങ്ങളുടെ OTP 123456. ഇത് ആരോടും പറയരുത്.", "നാളെ രാവിലെ അമ്പലത്തിൽ പോകാം.",
+    "तुमचा OTP 123456 आहे. तो कोणालाही सांगू नका.", "उद्या सकाळी मंदिरात जाऊया.",
+  ]) {
+    const { scan: r, risk } = run(text);
+    assert.equal(risk.category, "LOW", text);
+    assert.ok(!otpFound(risk), text);
+    if (["te", "bn", "kn", "ml"].includes(r.language.id)) assert.match(r.languageNote, /native speakers/, text);
+  }
 });

@@ -264,7 +264,7 @@ test("every data-i18n key used in a page exists, and its English text matches th
 // ------------------------------------------------------------------ settings and privacy
 test("Elder Mode and language are ordinary settings; nothing new is stored", () => {
   const keys = Object.keys(C.DEFAULT_SETTINGS).sort();
-  assert.deepEqual(keys, ["elderMode", "enabled", "language", "mutedSites", "sensitivity", "showAssistantBadge"]);
+  assert.deepEqual(keys, ["elderMode", "enabled", "language", "mutedSites", "pageWarnings", "sensitivity", "showAssistantBadge"]); // pageWarnings: Step 12
   assert.equal(C.DEFAULT_SETTINGS.elderMode, false);
   assert.equal(S.sanitizeSettings({ elderMode: true }).elderMode, true);
   assert.equal(S.sanitizeSettings({ elderMode: "yes" }).elderMode, false);

@@ -37,6 +37,7 @@
     [MSG.ANALYZE_SCREENSHOT]: ["page"],
     [MSG.RECORD_SCAN]: ["page"],
     [MSG.CONTENT_READY]: ["content"],
+    [MSG.CHECK_PAGE]: ["content"],
   });
 
   // URL analysis accepts only the exact fields below. A path, query or page text is refused at the door.
@@ -105,6 +106,16 @@
       return riskEngine.assess({ url: { ok: true, indicators } });
     }
 
+    /** True when the hostname is the sender tab's own (used for CHECK_PAGE). Compared only, never kept. */
+    function sameSite(sender, hostname) {
+      try {
+        const own = new URL(sender.tab && sender.tab.url ? sender.tab.url : sender.url).hostname.toLowerCase();
+        return own === String(hostname).toLowerCase();
+      } catch (e) {
+        return false;
+      }
+    }
+
     function classifySender(sender) {
       if (!sender || sender.id !== runtimeId) return "foreign";
       if (typeof sender.url === "string" && sender.url.startsWith(extOrigin)) return "page";
@@ -125,6 +136,36 @@
 
         case MSG.GET_STATE:
           return { ok: true, version, settings: await store.getSettings(), stats: await store.getStats() };
+
+        // Step 12: a page just opened. Only its site name and protocol are checked, and only to decide whether to show the
+        // full-page warning. Nothing about the page is stored; a warning adds one to a counter.
+        case MSG.CHECK_PAGE: {
+          const p = message.payload;
+          if (!H.isPlainObject(p) || !hasOnlyKeys(p, SITE_FIELDS)) return { ok: false, error: "bad-payload" };
+          if (typeof p.hostname !== "string" || p.hostname.length === 0 || p.hostname.length > MAX_HOSTNAME_INPUT) return { ok: false, error: "bad-payload" };
+          if (p.protocol !== "http:" && p.protocol !== "https:") return { ok: false, error: "bad-payload" };
+          if (!urlIntel || !riskEngine) return { ok: false, error: "unavailable" };
+          // The site name must be the tab's own: a content script cannot ask about some other website.
+          if (!sameSite(sender, p.hostname)) return { ok: false, error: "bad-payload" };
+          const settings = await store.getSettings();
+          if (!settings.enabled || !settings.pageWarnings) return { ok: true, warn: false, skipped: "off" };
+          if (H.isMuted(p.hostname, settings.mutedSites)) return { ok: true, warn: false, skipped: "quiet-site" };
+          const result = urlIntel.analyzeSite({ hostname: p.hostname, protocol: p.protocol });
+          if (!result || !result.ok) return { ok: true, warn: false, skipped: "not-checked" };
+          const assessment = urlAssessment(result);
+          const levels = H.PAGE_WARNING_LEVELS[settings.sensitivity] || H.PAGE_WARNING_LEVELS.balanced;
+          const warn = !!assessment && levels.includes(assessment.category);
+          if (!warn) return { ok: true, warn: false };
+          await store.recordWarningShown();
+          return {
+            ok: true,
+            warn: true,
+            category: assessment.category,
+            score: assessment.score,
+            host: result.hostUnicode || result.host,
+            reasons: assessment.reasons.slice(0, 3).map((r) => r.text),
+          };
+        }
 
         case MSG.CONTENT_READY: {
           const settings = await store.getSettings();
@@ -196,12 +237,18 @@
           const scan = messageScan.scanMessage(p.text, { language: p.language || "auto" });
           if (!scan.ok) return { ok: true, result: { ok: false, error: scan.error, message: scan.message } };
           const links = linkEvidence(p.text);
-          const assessment = riskEngine.assess({ message: { ok: true, indicators: scan.indicators }, url: links.module });
+          // Mostly in a language the rules cannot read, and nothing found: "could not tell", never "low risk".
+          // Links inside are still checked, and a warning from them still counts.
+          const unreadable = scan.unsupportedScript === true && !scan.indicators.some((i) => i.weight > 0);
+          const messagePart = unreadable ? { unavailable: true, reason: "The message is in a language Prevenza cannot read yet." } : { ok: true, indicators: scan.indicators };
+          const linkWarns = links.module && links.module.indicators.some((i) => (typeof i.weight === "number" ? i.weight : 1) > 0 && i.severity !== "info");
+          const assessment = riskEngine.assess({ message: messagePart, url: unreadable && !linkWarns ? undefined : links.module });
           return {
             ok: true,
             result: {
               ok: true,
               assessment,
+              unsupportedScript: unreadable,
               language: scan.language,
               languageNote: scan.languageNote,
               highlights: scan.highlights,

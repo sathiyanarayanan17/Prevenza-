@@ -25,7 +25,7 @@
   "use strict";
 
   const L = R.LIMITS;
-  const SETS = ["en", "hi", "ta", "hr", "tr"];
+  const SETS = ["en", "hi", "ta", "hr", "tr", "te", "bn", "kn", "ml"];
   const LANGUAGE_CHOICES = ["auto", "en", "hi", "ta", "hinglish"];
   const LANGUAGE_NOTE = "A best guess from the letters and common words. It can be wrong, especially for short or mixed messages.";
 
@@ -101,19 +101,46 @@
     return seen.size;
   }
 
+  const READABLE_SCRIPT = /[\p{Script=Latin}\p{Script=Devanagari}\p{Script=Tamil}\p{Script=Telugu}\p{Script=Bengali}\p{Script=Kannada}\p{Script=Malayalam}]/u;
+  const LETTER = /[\p{L}\p{M}]/u;
+
+  /**
+   * True when most of the letters are in a script the rules cannot read (Telugu, Bengali, Arabic, Cyrillic and so on).
+   * Counted on the text as typed, because normalising turns Cyrillic look-alike letters into Latin ones.
+   */
+  function mostlyUnreadable(raw) {
+    let readable = 0;
+    let other = 0;
+    for (const c of raw) {
+      if (!LETTER.test(c)) continue;
+      if (READABLE_SCRIPT.test(c)) readable += 1;
+      else other += 1;
+    }
+    return other >= L.unsupportedMinLetters && other > readable;
+  }
+
   /** A best guess at the language of already-normalised text. */
   function detectLanguage(norm) {
     let dev = 0;
     let tam = 0;
     let lat = 0;
+    const more = { te: 0, bn: 0, kn: 0, ml: 0 }; // Telugu, Bengali, Kannada, Malayalam (Step 12)
     for (const c of norm) {
       const cp = c.codePointAt(0);
       if (cp >= 0x0900 && cp <= 0x0963) dev += 1;
       else if (cp >= 0x0b80 && cp <= 0x0be5) tam += 1;
       else if (cp >= 97 && cp <= 122) lat += 1;
+      else if (cp >= 0x0c00 && cp <= 0x0c7f) more.te += 1;
+      else if (cp >= 0x0980 && cp <= 0x09ff) more.bn += 1;
+      else if (cp >= 0x0c80 && cp <= 0x0cff) more.kn += 1;
+      else if (cp >= 0x0d00 && cp <= 0x0d7f) more.ml += 1;
     }
-    const total = dev + tam + lat;
-    const base = { romanized: false, mixed: false, scripts: [], confidence: "low", note: LANGUAGE_NOTE, letters: total, hasDevanagari: dev > 0, hasTamil: tam > 0 };
+    const extra = more.te + more.bn + more.kn + more.ml;
+    const total = dev + tam + lat + extra;
+    const base = {
+      romanized: false, mixed: false, scripts: [], confidence: "low", note: LANGUAGE_NOTE, letters: total, hasDevanagari: dev > 0, hasTamil: tam > 0,
+      hasTelugu: more.te > 0, hasBengali: more.bn > 0, hasKannada: more.kn > 0, hasMalayalam: more.ml > 0,
+    };
     if (total === 0) return Object.assign(base, { id: "unknown", label: R.LANGUAGE_LABELS.unknown });
 
     // A script counts as present when at least two of its letters appear, so one Hindi word inside an English
@@ -122,6 +149,10 @@
     if (lat >= 2) scripts.push("latin");
     if (dev >= 2) scripts.push("devanagari");
     if (tam >= 2) scripts.push("tamil");
+    if (more.te >= 2) scripts.push("telugu");
+    if (more.bn >= 2) scripts.push("bengali");
+    if (more.kn >= 2) scripts.push("kannada");
+    if (more.ml >= 2) scripts.push("malayalam");
     const tokens = norm.match(/[a-z]+/g) || [];
     const hindiHits = countWords(tokens, R.HINGLISH_WORDS);
     const tamilHits = countWords(tokens, R.TAMIL_ROMAN_WORDS);
@@ -130,8 +161,12 @@
     let id;
     let romanized = false;
     let confidence;
-    const biggest = Math.max(dev, tam, lat);
-    if (biggest === dev) {
+    const biggestExtra = Object.keys(more).reduce((a, b) => (more[b] > more[a] ? b : a));
+    const biggest = Math.max(dev, tam, lat, more[biggestExtra]);
+    if (more[biggestExtra] > 0 && biggest === more[biggestExtra] && biggest > dev && biggest > tam && biggest > lat) {
+      id = biggestExtra;
+      confidence = biggest / total >= 0.8 && total >= 15 ? "high" : "medium";
+    } else if (biggest === dev) {
       id = "hi";
       confidence = dev / total >= 0.8 && total >= 15 ? "high" : "medium";
     } else if (biggest === tam) {
@@ -165,6 +200,10 @@
     const sets = new Set(["en"]);
     if (detected.hasDevanagari) sets.add("hi");
     if (detected.hasTamil) sets.add("ta");
+    if (detected.hasTelugu) sets.add("te");
+    if (detected.hasBengali) sets.add("bn");
+    if (detected.hasKannada) sets.add("kn");
+    if (detected.hasMalayalam) sets.add("ml");
     if (detected.id === "hinglish") sets.add("hr");
     if (detected.id === "ta" && detected.romanized) sets.add("tr");
     if (selected === "hi" || selected === "hinglish") {
@@ -181,6 +220,10 @@
     }
     return sets;
   }
+
+  const UNSUPPORTED_NOTE = "Most of this message is in a language Prevenza cannot read yet. It reads English, Hindi, Marathi, Tamil, Telugu, Bengali, Kannada, Malayalam and Hinglish, so it could not tell whether this is a scam.";
+  const BASIC_LANGUAGE_NOTE = "For this language Prevenza looks only for the most common scam signs, such as OTP requests, KYC and blocked-account threats. These checks still need review by native speakers, so a low result means even less here.";
+  const BASIC_LANGUAGES = ["te", "bn", "kn", "ml"];
 
   function languageNote(selected, detected) {
     if (selected === "auto" || detected.confidence === "low" || detected.id === "unknown") return "";
@@ -238,6 +281,7 @@
 
       const norm = normalize(text);
       const detected = detectLanguage(norm.text);
+      detected.unsupported = mostlyUnreadable(text);
       const sets = activeSets(selected, detected);
 
       const indicators = [];
@@ -300,14 +344,15 @@
       return {
         ok: true,
         language: Object.assign({ selected }, pick(detected, ["id", "label", "romanized", "mixed", "scripts", "confidence", "note"])),
-        languageNote: languageNote(selected, detected),
+        languageNote: detected.unsupported ? UNSUPPORTED_NOTE : BASIC_LANGUAGES.includes(detected.id) ? BASIC_LANGUAGE_NOTE : languageNote(selected, detected),
         indicators,
         highlights: mergeRanges(ranges),
         primaryCategory: primary ? { id: primary.id, label: primary.label } : null,
         otherCategories: others.map((c) => ({ id: c.id, label: c.label })),
         truncated,
         analysedLength: text.length,
-        shortText: detected.letters < L.shortTextLetters,
+        shortText: !detected.unsupported && detected.letters < L.shortTextLetters,
+        unsupportedScript: detected.unsupported,
       };
     } catch (e) {
       return fail("internal", "This message could not be checked.");

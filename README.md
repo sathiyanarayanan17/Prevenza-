@@ -23,14 +23,15 @@ Prevenza gives people a calm place to check something **before** they act:
 | Feature | What it does |
 |---|---|
 | Popup | Protection on/off, a rating of the open website (from its site name only), shortcuts, Emergency Help. |
-| Website checker | Offline URL analysis: look-alike brand names, misleading sub-sites, number addresses, link shorteners, the `@` and backslash tricks, mixed alphabets and punycode. |
-| Message checker | English, Hindi, Tamil and Hinglish. Fake KYC, digital arrest, parcel fees, OTP or UPI PIN requests, fake support, lottery, safe-account and other patterns. Suspicious phrases are marked in your own text. Links inside are checked too. |
+| Warning before a risky website | When the name of a website you open has strong scam signs, a full-page warning covers it first, with **Go back** and **Continue anyway**. Only the site name is checked. Balanced (the default) warns at High and Critical, Relaxed only at Critical, Strict also at Medium. Can be switched off in Settings; quiet sites are skipped. The number of warnings shown is counted, never which sites. |
+| Website checker | Offline URL analysis: look-alike brand names (including a doubled letter such as `sbii`, sound-alike spellings such as `phonepay`, and an unusual letter hidden in a famous name such as `sŋbi`), misleading sub-sites, number addresses, link shorteners, the `@` and backslash tricks, mixed alphabets and punycode. |
+| Message checker | English, Hindi, Tamil and Hinglish. The most common signs (OTP requests, KYC, blocked accounts, digital arrest, prizes, safe accounts, urgency) also in Marathi, Telugu, Bengali, Kannada and Malayalam. Fake KYC, digital arrest, parcel fees, OTP or UPI PIN requests, fake support, lottery, safe-account, fake job and task offers and other patterns. Suspicious phrases are marked in your own text. Links inside are checked too. A message mostly in another language is reported as Inconclusive, never Low. |
 | UPI payment checker | Recipient ID, name, amount, reason and pasted QR text. Flags "pay to receive", fake refunds, KYC charges and PIN-to-receive requests. There is no field for a PIN or OTP. |
-| Screenshot checker | You choose a PNG or JPEG. Its text is read on your device by bundled offline OCR (English, Hindi, Tamil), shown to you for correction, then checked. A screenshot is never treated as proof of payment. |
+| Screenshot checker | You choose a PNG or JPEG. Its text is read on your device by bundled offline OCR (English, Hindi, Tamil), shown to you for correction, then checked. A QR code in the picture is read on the device too (bundled jsQR); a UPI code can be sent to the UPI checker with one button, a web address to the link checker. A screenshot is never treated as proof of payment. |
 | Central risk engine | One engine turns evidence from every checker into a 0 to 100 warning level and a category: LOW, MEDIUM, HIGH, CRITICAL, or INCONCLUSIVE when it cannot decide. Missing or failed checks are never counted as safe. |
 | Prevy | One assistant card for every checker. It explains the warning, shows the signs found and suggests the next step. It is quiet for LOW, and a repeated result gets a short card. |
 | Elder Mode | 22px text, buttons at least 56px tall, stronger contrast, one-column dashboard, plain explanations with numbered steps, and an "Ask someone you trust" guide. |
-| Emergency Help | Seven situations (money sent, OTP or PIN shared, suspicious link, fake KYC, digital arrest, fake receipt, other). Reporting guidance: the National Cyber Crime Reporting Portal and helpline 1930. Nothing is called, sent or filed by the extension. |
+| Emergency Help | Seven situations (money sent, OTP or PIN shared, suspicious link, fake KYC, digital arrest, fake receipt, other). Reporting guidance: the National Cyber Crime Reporting Portal and helpline 1930. **Prepare your complaint**: a checklist of what to write down and a plain template the user can select and copy. There are no boxes to type into and nothing is kept. Nothing is called, sent or filed by the extension. |
 | Unified dashboard | A menu to every checker, a shared result summary, and privacy-safe counts (checks done by category, last check time). |
 | Languages | Interface labels, Prevy's messages, the Elder Mode panel and the trust guide in English, Hindi and Tamil. Detailed reasons and the emergency steps are English only. Hindi and Tamil text needs native-speaker review. |
 
@@ -56,7 +57,8 @@ Prevenza gives people a calm place to check something **before** they act:
 
  dashboard page: ocr-runner.js runs Tesseract (WebAssembly) locally on the chosen image and sends only the text.
  pages: risk-result.js (summary) and holdy-card.js (Prevy) DISPLAY the assessment; they never score.
- content script (on websites): reads only location.hostname and location.protocol; shows Prevy only if asked.
+ content script (on websites): reads only location.hostname and location.protocol; shows Prevy only if asked,
+   and asks the background (CHECK_PAGE: site name and protocol only) whether to show the full-page warning.
 ```
 
 ## Technology
@@ -64,6 +66,7 @@ Prevenza gives people a calm place to check something **before** they act:
 - Chrome Extension Manifest V3 (minimum Chrome 110).
 - Plain JavaScript, HTML and CSS. No framework and no build step.
 - [Tesseract.js](https://github.com/naptha/tesseract.js) 7.0.0 (Apache-2.0) with English, Hindi and Tamil data, bundled in `vendor/tesseract/` (about 11.3 MB).
+- [jsQR](https://github.com/cozmo/jsQR) 1.4.0 (Apache-2.0), an unmodified copy in `vendor/jsqr/` (250 KB), loaded only when a picture is chosen. The `qrcode` and `pngjs` packages are used by the tests only, to make QR pictures.
 - Tests: Node's built-in test runner, [fast-check](https://github.com/dubzzz/fast-check) for property tests, and [playwright-core](https://playwright.dev) to drive a real Chromium with the extension loaded. These are development-only; the extension itself has no dependencies to download.
 
 ## Folder structure
@@ -94,7 +97,8 @@ vendor/tesseract/          bundled offline OCR engine and language data
 test/                      unit, security and privacy tests (npm test)
 e2e/run.js                 real-browser checks (npm run test:e2e)
 e2e/web.js                 real-browser checks for the website and the app files (npm run test:e2e:web)
-scripts/                   icon and OCR asset generators, detection spot-check, serve-web.js (dev server), build-mobile.js
+scripts/                   icon and OCR asset generators, detection spot-check, serve-web.js (dev server), build-mobile.js, evaluate-holdout.js
+data/holdout/              the held-out evaluation set (empty: see its README before adding anything)
 DEMO_GUIDE.md              5-minute hackathon demo
 ```
 
@@ -153,7 +157,9 @@ npm run open       # opens the project in Android Studio; press Run on a device 
 npm run apk        # or build a debug APK from the command line (needs ANDROID_HOME)
 ```
 
-Status: the build script, the share script and the manifest are covered by unit tests, and the app's files are tested in Chromium with a pretend Capacitor (`npm run test:e2e:web`). The Gradle build, the install on a device or emulator, and the native share code have **not** been run yet. Treat the Android app as in development.
+Status: the debug and release APKs build (Capacitor 8.6.2, JDK 21, Android SDK 36) and were run on an Android 14 emulator (x86_64, Google APIs). There, with no INTERNET permission, the checker page opened directly (no redirect page), a message check gave the same result as the website, and offline OCR read a PNG. A `fetch` from the page was blocked. "Prevenza" appeared in the Android share sheet: shared text went into the message checker and an image shared from the Files app went into the screenshot checker. It has not been tested on a physical phone, and it is not published.
+
+**Release signing.** `npm run apk:release` signs with a key kept outside the project, in `~/.prevenza-signing/` (`prevenza-release.jks`, and `keystore.properties` with its passwords), or wherever `PREVENZA_KEYSTORE_PROPERTIES` points. No key or password is in the repository, and `.gitignore` blocks `*.jks`, `*.keystore` and `keystore.properties`. Without that folder, release builds are simply unsigned. **Back the folder up somewhere safe:** an app signed with a lost key can never be updated on Google Play.
 ## How to use each part
 
 - **Popup:** click the shield icon. Use the switch to turn protection on or off. The page rating is based on the site name only. **Dashboard** opens the checkers. **Emergency Help** opens the help page.
@@ -180,31 +186,33 @@ Status: the build script, the share script and the manifest are covered by unit 
 
 ```
 npm install                               # development tools only
-npm test                                  # 428 unit, security and privacy tests (extension, website and Android files)
+npm test                                  # 465 unit, security and privacy tests (extension, website and Android files)
 npx playwright-core install chromium      # once: downloads a test browser
-npm run test:e2e                          # 432 checks in a real Chromium (a window opens for about 2 minutes)
-npm run test:e2e:web                      # 77 checks of the website and the app files (headless, about 1 minute)
+npm run test:e2e                          # 464 checks in a real Chromium (a window opens for about 3 minutes)
+npm run test:e2e:web                      # 88 checks of the website and the app files (headless, about 1 minute)
 npm run audit:detection                   # prints the detection spot-check table
+npm run eval:holdout                      # measures detection on data/holdout (prints counts only until there are 50+ examples)
 ```
 
-Results from the latest run: 428 of 428 unit tests passed (396 extension tests plus 32 for the website and the Android files), 432/432 extension browser checks passed and 77/77 website browser checks passed. Branded Chrome ignores the command-line flag that loads unpacked extensions, so the automated tests use the open-source Chromium build. Manual loading in Chrome works as described above.
+Results from the latest run (Step 12): 465 of 465 unit tests passed, 464/464 extension browser checks passed and 88/88 website browser checks passed. Branded Chrome ignores the command-line flag that loads unpacked extensions, so the automated tests use the open-source Chromium build. Manual loading in Chrome works as described above.
 
-**Detection spot-check** (`scripts/detection-check.js`): 57 invented examples (25 links, 21 messages, 11 UPI requests). 52 behaved as expected, 4 were recorded without a verdict, and there was 1 false negative (a "like videos and earn" job scam was rated Low) and no false positives. This is **not an accuracy measurement**: the examples are similar to the ones the rules were written from, and there is no held-out data set.
+**Detection spot-check** (`scripts/detection-check.js`): 57 invented examples (25 links, 21 messages, 11 UPI requests). 53 behaved as expected and 4 were recorded without a verdict. There were no false negatives and no false positives. The "like videos and earn" job scam that used to be missed is now caught, but that rule was written after seeing it, so this shows nothing about accuracy. This is **not an accuracy measurement**: the examples are similar to the ones the rules were written from, and there is no held-out data set.
 
 ## Known limitations
 
-- Detection is rule-based and offline. It catches common patterns, not every scam. New wording, other languages and brand-new scam websites with ordinary names can be missed (for example the job/task scam above).
+- Detection is rule-based and offline. It catches common patterns, not every scam. New wording, other languages and brand-new scam websites with ordinary names can be missed.
 - Website checks use a small built-in list of about 25 brands and their real domains, plus a short list of endings. Domain age and reputation are not checked (that would need the network).
 - The open-tab rating in the popup uses the site name only, not the page content.
 - A UPI ID that cannot be read is reported as a problem, and the rest of the details are still checked. Prevenza cannot see your UPI app, check who owns an ID, or stop a payment.
 - OCR is slower on older devices (measured at about 0.4 to 1.7 seconds per image on the development machine). Rotated, cropped or very stylised text reads badly. Poor readings with no warning signs are reported as Inconclusive.
 - Hindi and Tamil translations were written by the developer and need native-speaker review. Not everything is translated.
-- The extension does not show warnings on websites by itself (planned). The "Warnings shown" counter therefore stays at 0.
+- Telugu, Bengali, Kannada, Malayalam and Marathi checks cover only the most common scam signs and were written by the developer; a note says so on every result. Messages mostly in other languages or scripts (for example Gujarati, Punjabi, Odia, Arabic or Russian) cannot be read. They are reported as **Inconclusive** with a note, never as Low. Links inside them are still checked.
+- There is **no accuracy figure**. `npm run eval:holdout` is ready, but no held-out set has been collected yet (see `data/holdout/README.md`).
+- The warning before a website uses the site name only, not the page. A scam site with an ordinary name is not warned about, and a real site with an unusual name can be (more likely on Strict). "Continue anyway" is always there.
 
 ## Future scope
 
-- Warning pop-up before a risky page opens.
-- A larger, reviewed rule set and a held-out test set to measure accuracy honestly.
+- A larger, native-speaker-reviewed rule set, and a collected held-out set run through `npm run eval:holdout` to measure accuracy honestly.
 - Optional online checks (domain age, community reports), off by default, with explicit consent and the minimum data.
 - Full Hindi and Tamil interface reviewed by native speakers, and more Indian languages.
 - Finish and test the Android app on a device (see the Android section), then consider reading SMS and UPI apps only within platform privacy rules.

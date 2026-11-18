@@ -84,6 +84,7 @@
     Object.freeze({ when: /brand_|lookalike|homograph|typosquat|at_sign|misleading_subdomain/, text: "Type the official website address yourself, or use the official app." }),
     Object.freeze({ when: /kyc/, text: "Banks do not ask you to complete KYC through a link in a message. Visit your bank or use its official app." }),
     Object.freeze({ when: /parcel|customs|delivery_fee/, text: "Check any parcel in the courier's official app. Do not pay fees through a link in a message." }),
+    Object.freeze({ when: /easy_earning|task_fee/, text: "A real employer never asks you to pay to get a job, and you never need to deposit money to receive your earnings." }),
     Object.freeze({ when: /prize|lottery|reward/, text: "You cannot win a prize you did not enter, and real prizes never need a fee." }),
     Object.freeze({ when: /remote_access/, text: "Do not install an app or share your screen because someone asks you to." }),
     Object.freeze({ when: /customer_care/, text: "Find your bank's number on its official website or on your card, not in the message." }),

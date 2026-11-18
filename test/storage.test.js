@@ -8,7 +8,7 @@ const { createFakeArea } = require("./helpers/fake-chrome.js");
 
 test("default settings are safe: enabled, silent assistant, balanced, no muted sites", () => {
   assert.deepEqual(S.sanitizeSettings(undefined), {
-    enabled: true, elderMode: false, language: "en", sensitivity: "balanced", showAssistantBadge: false, mutedSites: [],
+    enabled: true, elderMode: false, language: "en", sensitivity: "balanced", showAssistantBadge: false, pageWarnings: true, mutedSites: [],
   });
 });
 
@@ -28,8 +28,8 @@ test("sanitizeSettings drops unknown keys and invalid values", () => {
 });
 
 test("sanitizeSettings keeps valid values", () => {
-  const out = S.sanitizeSettings({ enabled: false, elderMode: true, language: "ta", sensitivity: "strict", showAssistantBadge: true, mutedSites: ["Example.com"] });
-  assert.deepEqual(out, { enabled: false, elderMode: true, language: "ta", sensitivity: "strict", showAssistantBadge: true, mutedSites: ["example.com"] });
+  const out = S.sanitizeSettings({ enabled: false, elderMode: true, language: "ta", sensitivity: "strict", showAssistantBadge: true, pageWarnings: false, mutedSites: ["Example.com"] });
+  assert.deepEqual(out, { enabled: false, elderMode: true, language: "ta", sensitivity: "strict", showAssistantBadge: true, pageWarnings: false, mutedSites: ["example.com"] });
 });
 
 test("normalizeHostname accepts real hostnames and rejects junk", () => {

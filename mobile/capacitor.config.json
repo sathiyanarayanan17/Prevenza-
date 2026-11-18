@@ -2,6 +2,11 @@
   "appId": "app.prevenza.scamguard",
   "appName": "Prevenza",
   "webDir": "www",
-  "server": { "androidScheme": "https" },
-  "android": { "allowMixedContent": false }
+  "server": {
+    "androidScheme": "https",
+    "appStartPath": "/web/app/check.html"
+  },
+  "android": {
+    "allowMixedContent": false
+  }
 }

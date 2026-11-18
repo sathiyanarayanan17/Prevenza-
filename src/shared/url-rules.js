@@ -130,7 +130,7 @@
     { id: "pnb", name: "Punjab National Bank", exact: ["pnb"], contains: ["pnbindia"], domains: ["pnbindia.in", "netpnb.com", "pnbindia.com"] },
     { id: "bob", name: "Bank of Baroda", exact: [], contains: ["bankofbaroda"], domains: ["bankofbaroda.in", "bankofbaroda.com", "bobfinancial.com"] },
     { id: "paytm", name: "Paytm", exact: ["paytm"], contains: ["paytmbank"], typo: true, glue: true, domains: ["paytm.com", "paytmbank.com", "paytmmoney.com", "paytm.me"] },
-    { id: "phonepe", name: "PhonePe", exact: [], contains: ["phonepe"], domains: ["phonepe.com"] },
+    { id: "phonepe", name: "PhonePe", exact: [], contains: ["phonepe"], soundsLike: ["phonepay", "fonepe", "fonepay"], domains: ["phonepe.com"] },
     { id: "npci", name: "NPCI / BHIM UPI", exact: ["npci", "bhim"], contains: [], domains: ["npci.org.in", "bhimupi.org.in"] },
     { id: "irctc", name: "IRCTC", exact: ["irctc"], contains: [], typo: true, glue: true, domains: ["irctc.co.in", "irctc.com", "irctctourism.com"] },
     { id: "uidai", name: "Aadhaar (UIDAI)", exact: ["uidai"], contains: [], typo: true, glue: true, domains: ["uidai.gov.in"] },

@@ -35,11 +35,25 @@
 
   // Secret codes, in English letters. "pin code" (a postal code) is not a secret.
   const OTP_L = String.raw`(?:o${SP}t${SP}p|one[\s-]?time[\s-]?(?:password|pin|code|passcode)|verification\s+code|security\s+code|login\s+code|secret\s+code|(?:upi|atm|debit|credit|card|net[\s-]?banking|login)[\s-]?pin|m[\s-]?pin|pin(?!\s*code)|cvv|cvc|passwords?|passcode)`;
-  const OTP_HI = String.raw`(?:ओ[\s.]?टी[\s.]?पी|वन[\s-]?टाइम[\s-]?पासवर्ड|पिन(?!\s*कोड)|सीवीवी|पासवर्ड|वेरिफिकेशन\s*कोड|सिक्योरिटी\s*कोड)`;
-  const OTP_TA = String.raw`(?:[ஒஓ][\s.]?டி[\s.]?பி|யுபிஐ\s*பின|ஏடிஎம்\s*பின|பின்\s*நம்பர|பாஸ்வேர்ட|கடவுச்சொல|சிவிவி|ஒரு\s*முறை\s*கடவுச்சொல)`;
+  // Real Hindi and Tamil SMS usually write OTP, PIN and CVV in English letters, so the English words count here too.
+  const OTP_HI = String.raw`(?:ओ[\s.]?टी[\s.]?पी|वन[\s-]?टाइम[\s-]?पासवर्ड|पिन(?!\s*कोड)|सीवीवी|पासवर्ड|वेरिफिकेशन\s*कोड|सिक्योरिटी\s*कोड|\b${OTP_L}\b)`;
+  const OTP_TA = String.raw`(?:[ஒஓ][\s.]?டி[\s.]?பி|யுபிஐ\s*பின|ஏடிஎம்\s*பின|பின்\s*நம்பர|பாஸ்வேர்ட|கடவுச்சொல|சிவிவி|ஒரு\s*முறை\s*கடவுச்சொல|\b${OTP_L}\b)`;
+
+  // Telugu, Bengali, Kannada and Malayalam (Step 12): the most common scam signs only. Written by the developer, so they
+  // need review by native speakers. Text is NFKC-normalised first: Bengali য় arrives as য + ় (\u09bc), and zero-width
+  // joiners are removed, so the patterns below use those forms.
+  const OTP_TE = String.raw`(?:ఓ\s*టీ\s*పీ|ఓటీపీ|ఓటిపి|ఒటిపి|పిన్|పాస్వర్డ్|సీవీవీ|\b${OTP_L}\b)`;
+  const SHARE_TE = String.raw`(?:చెప్ప|పంప|షేర్|ఇవ్వ|తెలియజేయ)`;
+  const OTP_BN = String.raw`(?:ও\s*টি\s*পি|ওটিপি|পিন|পাসও\u09af\u09bcার্ড|সিভিভি|\b${OTP_L}\b)`;
+  const SHARE_BN = String.raw`(?:বল|পাঠা|শে\u09af\u09bcার|দিন|দি\u09af\u09bcে\s*দিন|জানা)`;
+  const OTP_KN = String.raw`(?:ಒ\s*ಟಿ\s*ಪಿ|ಒಟಿಪಿ|ಓಟಿಪಿ|ಪಿನ್|ಪಾಸ್ವರ್ಡ್|ಸಿವಿವಿ|\b${OTP_L}\b)`;
+  const SHARE_KN = String.raw`(?:ಹೇಳ|ಕಳುಹಿಸ|ಕಳಿಸ|ಹಂಚಿಕೊಳ್ಳ|ನೀಡ|ಕೊಡ|ಶೇರ್)`;
+  const OTP_ML = String.raw`(?:ഒ\s*ടി\s*പി|ഒടിപി|ഓടിപി|പി(?:ൻ|ന്)|പാസ്വേഡ്|സിവിവി|\b${OTP_L}\b)`;
+  const SHARE_ML = String.raw`(?:പറയ|പറഞ്ഞ|അയയ്ക്ക|അയക്ക|ഷെയർ|ഷെയര്|നൽക|നല്ക|കൊടുക്ക)`;
+  const ACCOUNT_ML = String.raw`(?:അക്ക(?:\u0d4c|\u0d57)ണ്ട|കാർഡ്|കാര്ഡ്|സിം)`;
 
   const SHARE_L = String.raw`(?:share|send|tell|give|provide|forward|read\s+out|reveal|disclose|dictate|whatsapp)`;
-  const SHARE_HI = String.raw`(?:बता|भेज|शेयर|साझा|दे\s*द|दीजिए|दीजिये|बोल|सुना)`;
+  const SHARE_HI = String.raw`(?:बता|भेज|शेयर|साझा|दे\s*द|दीजिए|दीजिये|बोल|सुना|सांग|पाठव|द्या)`; // the last three are Marathi
   const SHARE_TA = String.raw`(?:சொல|அனுப்ப|அனுப்பு|பகிர|கொடு|தெரிவி|தாருங்கள|வழங்க|கூற)`;
   const SHARE_HR = String.raw`(?:bata\w*|bhej\w*|share|send|de\s*do|dena|dijiye\w*|sunao|bol\s*do|bolo|likh\w*|batayen|batayein)`;
   const SHARE_TR = String.raw`(?:sollu\w*|solli\w*|solren|anupp\w*|kodu\w*|kud\w*|tharu\w*|share|send|podu\w*)`;
@@ -67,7 +81,8 @@
   // ---------------------------------------------------------------- wording that cancels or softens a match
   // "before" is tested on the 45 characters before the match plus the match. "after" is tested on the text right after it.
   const NEG_BEFORE_SECRET = String.raw`\b(?:do\s*not|don'?t|dont|never|not\s+to|should\s*not|shouldn'?t|will\s+not|won'?t|no\s+one|nobody|avoid|beware|no\s+need)\b|कभी|(?:^|\s)(?:न|ना)\s*(?:कर|बता|भेज|दे)|नहीं|(?:^|\s)मत(?=\s|[,.!\u0964]|$)|கூடாது|வேண்டாம|ஒருபோதும|\b(?:mat|nahi|nahin|kabhi|vendam|vendaam|koodathu|kudathu)\b`;
-  const NEG_AFTER_SECRET = String.raw`^[\s,.\-:;]{0,3}(?:(?:न|ना)\s*(?:कर|बता|भेज|दे)|नहीं|मत(?=\s|[,.!\u0964]|$)|வேண்டாம|கூடாது|(?:mat|nahi|nahin|vendam|koodathu|na\s+kar\w*)\b)`;
+  // After a share verb: a separate "don't" word, or Tamil's negative verb ending -ாத- (சொல்லாதீர்கள், அனுப்பாதே).
+  const NEG_AFTER_SECRET = String.raw`^[\s,.\-:;]{0,3}(?:(?:न|ना)\s*(?:कर|बता|भेज|दे)|नहीं|मत(?=\s|[,.!\u0964]|$)|வேண்டாம|கூடாது|[\u0B80-\u0BFF]{0,3}ாத(?:ீ|ே|ு|ிர)|[\u0900-\u097F]{0,3}\s?नका|[\u0C00-\u0C7F]{0,3}(?:కండి|కూడదు)|\s?వద్దు|[\u0980-\u09FF]{0,8}\s?না(?![\u0980-\u09FF])|[\u0C80-\u0CFF]{0,3}(?:ಬೇಡ|ಬಾರದು)|[\u0D00-\u0D7F]{0,3}(?:രുത്|ണ്ട)|(?:mat|nahi|nahin|vendam|koodathu|na\s+kar\w*)\b)`;
   // Awareness messages: "digital arrest is a scam". The phrase is still shown, but only as a note.
   const NEG_BEFORE_AWARE = String.raw`\b(?:scams?|frauds?|beware|cheat\w*|never|no\s+such|not\s+a|awareness|myth|dhokha|thagi|sawdhan|mosadi)\b|ठगी|धोखा|फर्जी|जागरूक|सावधान|(?<!பண)மோசடி|போலி|விழிப்புணர்வு`;
   const NEG_AFTER_AWARE = String.raw`^${g(30)}(?:\b(?:scam|fraud|cheating|myth|not\s+real|doesn'?t\s+exist|does\s+not\s+exist)\b|ठगी|धोखा|फर्जी|(?<!பண)மோசடி|போலி)`;
@@ -94,6 +109,10 @@
         hi: [String.raw`डिजिटल\s*(?:अरेस्ट|गिरफ्तार)`],
         ta: [String.raw`டிஜிட்டல்\s*(?:கைது|அரெஸ்ட)`],
         hr: [String.raw`\bdigital\s*(?:girftar\w*|giraftar\w*)`],
+        te: [String.raw`డిజిటల్\s*అరెస్ట`],
+        bn: [String.raw`ডিজিটাল\s*(?:অ্যারেস্ট|এরেস্ট|গ্রেফতার|গ্রেপ্তার)`],
+        kn: [String.raw`ಡಿಜಿಟಲ್\s*(?:ಅರೆಸ್ಟ್|ಬಂಧನ)`],
+        ml: [String.raw`ഡിജിറ്റ(?:ൽ|ല്)\s*അറസ്റ്റ`],
         tr: [String.raw`\bdigital\s*(?:kaidhu|kaithu|kaidu)\b`],
       },
     },
@@ -151,6 +170,10 @@
         hi: [String.raw`(?:सुरक्षित|आरबीआई|सरकारी|वेरिफिकेशन|अस्थायी)\s*(?:खाते|खाता|अकाउंट)${g(40)}(?:ट्रांसफर|भेज|जमा)`],
         ta: [String.raw`(?:பாதுகாப்பான|ஆர்பிஐ|அரசு|சரிபார்ப்பு)\s*(?:கணக்க|அக்கவுண்ட)${g(40)}(?:மாற்ற|அனுப்ப|செலுத்த|டெபாசிட)`],
         hr: [String.raw`\b(?:safe|secure|rbi|sarkari|verification)\s+(?:khate|khata|account)\b${g(40)}\b(?:transfer|bhej\w*|jama|dal\w*)\b`],
+        te: [String.raw`(?:సురక్షిత|ఆర్బీఐ|ప్రభుత్వ)\s*(?:ఖాతా|అకౌంట్)${g(40)}(?:బదిలీ|ట్రాన్స్ఫర్|పంప|జమ)`],
+        bn: [String.raw`(?:নিরাপদ|সুরক্ষিত|আরবিআই|সরকারি)\s*(?:অ্যাকাউন্ট|একাউন্ট|খাতা)${g(40)}(?:ট্রান্সফার|পাঠা|জমা)`],
+        kn: [String.raw`(?:ಸುರಕ್ಷಿತ|ಆರ್ಬಿಐ|ಸರ್ಕಾರಿ)\s*(?:ಖಾತೆ|ಅಕೌಂಟ್)${g(40)}(?:ವರ್ಗಾಯಿಸ|ಟ್ರಾನ್ಸ್ಫರ್|ಕಳುಹಿಸ|ಜಮಾ)`],
+        ml: [String.raw`(?:സുരക്ഷിത|ആർബിഐ|ആര്ബിഐ|സർക്കാർ|സര്ക്കാര്)\s*${ACCOUNT_ML}${g(40)}(?:ട്രാൻസ്ഫർ|ട്രാന്സ്ഫര്|മാറ്റ|അയയ്ക്ക|അയക്ക|നിക്ഷേപി)`],
         tr: [String.raw`\b(?:safe|secure|rbi|government|verification)\s+account\b${g(40)}\b(?:transfer|anupp\w*|podu\w*|kattu\w*)\b`],
       },
     },
@@ -168,6 +191,10 @@
         hi: [String.raw`${OTP_HI}${g(40)}${SHARE_HI}`, String.raw`${SHARE_HI}${g(15)}${OTP_HI}`],
         ta: [String.raw`${OTP_TA}${g(40)}${SHARE_TA}`, String.raw`${SHARE_TA}${g(15)}${OTP_TA}`],
         hr: [String.raw`\b${OTP_L}\b${g(40)}\b${SHARE_HR}\b`, String.raw`\b(?:bata\w*|bhej\w*|share|send)\b${g(25)}\b${OTP_L}\b`],
+        te: [String.raw`${OTP_TE}${g(40)}${SHARE_TE}`, String.raw`${SHARE_TE}${g(15)}${OTP_TE}`],
+        bn: [String.raw`${OTP_BN}${g(40)}${SHARE_BN}`, String.raw`${SHARE_BN}${g(15)}${OTP_BN}`],
+        kn: [String.raw`${OTP_KN}${g(40)}${SHARE_KN}`, String.raw`${SHARE_KN}${g(15)}${OTP_KN}`],
+        ml: [String.raw`${OTP_ML}${g(40)}${SHARE_ML}`, String.raw`${SHARE_ML}${g(15)}${OTP_ML}`],
         tr: [String.raw`\b${OTP_L}\b${g(40)}\b${SHARE_TR}\b`],
       },
     },
@@ -223,6 +250,10 @@
           String.raw`(?:புதுப்பி|சரிபார)${g(20)}${KYC_TA}`,
         ],
         hr: [String.raw`\b${KYC_L}\b${g(50)}\b(?:update|adhura|adhuri|pura|puri|expire\w*|band|block|verify|verification|pending|zaruri|jaruri|anivarya|karwa\w*|karen|karein|kare|kijiye|karna|karo)\b`],
+        te: [String.raw`(?:కేవైసీ|కే\s*వై\s*సీ|కె\s*వై\s*సి|k${SP}y${SP}c)${g(50)}(?:అప్డేట్|పెండింగ్|గడువు|పూర్తి|ధృవీకర|వెరిఫై)`],
+        bn: [String.raw`(?:কেও\u09af\u09bcাইসি|কে\s*ও\s*\u09af\u09bcাই\s*সি|k${SP}y${SP}c)${g(50)}(?:আপডেট|বাকি|অসম্পূর্ণ|মে\u09af\u09bcাদ|যাচাই|ভেরিফাই)`],
+        kn: [String.raw`(?:ಕೆವೈಸಿ|ಕೆ\s*ವೈ\s*ಸಿ|k${SP}y${SP}c)${g(50)}(?:ಅಪ್ಡೇಟ್|ಬಾಕಿ|ಪೂರ್ಣ|ಅವಧಿ|ಪರಿಶೀಲ|ವೆರಿಫೈ)`],
+        ml: [String.raw`(?:കെവൈസി|കെ\s*വൈ\s*സി|k${SP}y${SP}c)${g(50)}(?:അപ്ഡേറ്റ്|പുതുക്ക|പൂർത്തി|പൂര്ത്തി|കാലാവധി|പരിശോധ|വെരിഫൈ)`],
         tr: [String.raw`\b${KYC_L}\b${g(50)}\b(?:update|mudiya\w*|puthuppi\w*|expire\w*|block|pending|kattayam|seyya\w*|panna\w*|pannunga|pannanum|verify)\b`],
       },
     },
@@ -241,6 +272,10 @@
         hi: [String.raw`(?:खाता|खाते|अकाउंट|कार्ड|सिम|मोबाइल\s*नंबर|आधार|पैन|बिजली\s*कनेक्शन)${g(40)}(?:ब(?:ंद|न्द)|ब्लॉक|सस्पेंड|फ्रीज|निलंबित|रद्द|डीएक्टिवेट|निष्क्रिय|लॉक|कट\s*जाए|कट\s*दिया)`],
         ta: [String.raw`(?:கணக்க|அக்கவுண்ட|கார்ட|சிம(?:்|ை)|மொபைல்\s*எண|ஆதார|பான|மின்\s*இணைப்பு)${g(40)}(?:முடக்க|தடை|ரத்து|நிறுத்த|பிளாக|ப்ளாக|சஸ்பெண்ட|செயலிழ|துண்டிக்க|லாக)`],
         hr: [String.raw`\b(?:khata|khate|account|a\/c|card|sim|aadhaar|aadhar|pan|bijli\s+connection|mobile\s+number)\b${g(40)}\b(?:band|block|suspend|freeze|frozen|rok\w*|nilambit|radd|deactivate\w*|lock|disconnect)\w*`],
+        te: [String.raw`(?:ఖాతా|అకౌంట్|కార్డ్|సిమ్)${g(40)}(?:బ్లాక్|నిలిపి|మూసి|రద్దు|సస్పెండ్|ఫ్రీజ్)`],
+        bn: [String.raw`(?:অ্যাকাউন্ট|একাউন্ট|খাতা|কার্ড|সিম)${g(40)}(?:বন্ধ|ব্লক|স্থগিত|বাতিল|ফ্রিজ|সাসপেন্ড)`],
+        kn: [String.raw`(?:ಖಾತೆ|ಅಕೌಂಟ್|ಕಾರ್ಡ್|ಸಿಮ್)${g(40)}(?:ಬ್ಲಾಕ್|ಸ್ಥಗಿತ|ರದ್ದು|ಬಂದ್|ಸಸ್ಪೆಂಡ್|ಫ್ರೀಜ್)`],
+        ml: [String.raw`${ACCOUNT_ML}${g(40)}(?:ബ്ലോക്ക്|മരവിപ്പി|റദ്ദ|സസ്പെൻഡ്|സസ്പെന്ഡ്|നിർത്ത|നിര്ത്ത)`],
         tr: [String.raw`\b(?:account|kanakku|card|sim|aadhaar|aadhar|pan|mobile\s+number|eb\s+connection)\b${g(40)}\b(?:block|mudakk\w*|nirutth\w*|niruth\w*|suspend|close|freeze|ratthu|cancel|disconnect|deactivate)\w*`],
       },
     },
@@ -314,6 +349,10 @@
           String.raw`\b(?:badhai|mubarak)\b${g(60)}\b(?:jeet\w*|inaam|lottery|winner|chun\w*)\b`,
           String.raw`\b(?:aapne|aap\s+ne)\b${g(40)}\b(?:lottery|inaam|jackpot|lucky\s+draw)\b`,
         ],
+        te: [String.raw`(?:లాటరీ|బహుమతి|జాక్పాట్|అభినందనలు)${g(60)}(?:గెలుచు|గెలిచ|ఎంపిక)`],
+        bn: [String.raw`(?:লটারি|পুরস্কার|জ্যাকপট|অভিনন্দন)${g(60)}(?:জিতে|জ\u09af\u09bcী|বিজ\u09af\u09bcী|নির্বাচিত)`],
+        kn: [String.raw`(?:ಲಾಟರಿ|ಬಹುಮಾನ|ಜಾಕ್ಪಾಟ್|ಅಭಿನಂದನೆ)${g(60)}(?:ಗೆದ್ದ|ಗೆಲ್ಲ|ಆಯ್ಕೆ)`],
+        ml: [String.raw`(?:ലോട്ടറി|സമ്മാന|ജാക്ക്പോട്ട്|അഭിനന്ദന)${g(60)}(?:നേടി|ലഭിച്ചു|വിജയി|തിരഞ്ഞെടുക്ക)`],
         tr: [
           String.raw`\b(?:vaazhthukkal|valthukkal)\b${g(60)}\b(?:parisu|lottery|jeyitha\w*|vetri|winner)\b`,
           String.raw`\b(?:lottery|parisu|jackpot)\b${g(60)}\b(?:vendr\w*|vetri|jeyith\w*|winner)\b`,
@@ -335,6 +374,61 @@
         ta: [String.raw`(?:செயலாக்க|பதிவு|கிளைம|வரி|ஜிஎஸ்டி|காப்பீடு)\s*(?:கட்டண|வரி)${g(40)}(?:செலுத்த|அனுப்ப|கட்ட)`],
         hr: [String.raw`\b(?:processing|registration|claim|tax|gst|insurance)\s*(?:fees?|charges?|shulk)\b${g(40)}\b(?:jama|bhej\w*|pay|dena|bharna|bhugtan)\w*`],
         tr: [String.raw`\b(?:processing|registration|claim|tax|gst)\s*(?:fees?|charges?|kattanam)\b${g(40)}\b(?:kattu\w*|anupp\w*|pay|podu\w*|seluttu\w*)\w*`],
+      },
+    },
+
+    // ---- fake jobs, tasks and easy money (like videos, rate hotels, "prepaid tasks", pay to join)
+    {
+      id: "msg_easy_earning",
+      categories: ["job_task"],
+      weight: 3,
+      label: "Promises easy money for simple online tasks or part-time work",
+      why: "Messages that promise a fixed daily income for liking videos, rating products or easy tasks are a common way to start a task scam. Real jobs do not arrive like this.",
+      patterns: {
+        en: [
+          String.raw`\b(?:earn|earning|income|salary|make|get)\b${g(40)}(?:rs\.?|inr|₹)?\s*\d[\d,]*(?:\s*\/-)?${g(25)}\b(?:daily|per\s+day|a\s+day|every\s+day|per\s+hour|an\s+hour|per\s+task|each\s+task|weekly|per\s+week)\b`,
+          String.raw`\b(?:like|liking|subscribe|subscribing|follow|following|rate|rating|review|reviewing)\b${g(30)}\b(?:videos?|youtube|channels?|posts?|reels?|hotels?|products?|movies?|apps?|restaurants?)\b${g(60)}(?:\b(?:earn\w*|paid|payment|income|commission|salary|profit)\b|rs\.?\s*\d|₹\s*\d)`,
+          String.raw`\b(?:part[\s-]?time|work\s+from\s+home|wfh|simple|easy|home[\s-]?based)\s+(?:online\s+)?(?:jobs?|work|tasks?|income)\b${g(60)}\b(?:daily|per\s+day|per\s+task|commission|earn\w*)\b`,
+        ],
+        hi: [
+          String.raw`(?:घर\s*बैठे|रोज़?|रोजाना|रोज़ाना|प्रतिदिन|हर\s*दिन)${g(30)}कमा`,
+          String.raw`कमा\S*${g(30)}(?:रोज़?|रोजाना|प्रतिदिन|हर\s*दिन)`,
+          String.raw`(?:वीडियो|यूट्यूब)\S*\s*(?:को\s*)?लाइक${g(60)}(?:कमा|पैसे|कमीशन)`,
+        ],
+        ta: [
+          String.raw`(?:தினமும|தினசரி|வீட்டிலிருந்தே|ஒரு\s*நாளைக்கு)${g(30)}சம்பாதி`,
+          String.raw`(?:வீடியோ|யூடியூப)${g(30)}லைக${g(60)}(?:சம்பாதி|பணம|கமிஷன)`,
+        ],
+        hr: [
+          String.raw`\b(?:ghar\s+baithe|roz|rozana|har\s+din)\b${g(30)}\b(?:kamao|kamaye|kamaiye|kamayein|kamai)\b`,
+          String.raw`\b(?:kamao|kamaye|kamaiye|kamayein)\b${g(30)}\b(?:roz|rozana|daily|har\s+din|per\s+day)\b`,
+        ],
+        tr: [String.raw`\b(?:dhinamum|thinamum|veetla\s+irundhe|veetil\s+irundhe)\b${g(30)}\b(?:sambaadh\w*|sambadh\w*|earn\w*)\b`],
+      },
+    },
+    {
+      id: "msg_task_fee",
+      categories: ["job_task"],
+      weight: 4.5,
+      label: "Asks you to pay to get a job or to unlock task earnings",
+      why: "A real employer never asks you to pay a registration, joining or security fee, or to deposit money to unlock your earnings. In task scams the first small payouts are bait.",
+      patterns: {
+        en: [
+          String.raw`\b(?:registration|joining|activation|security|onboarding|training|kit|id\s+card)\s*(?:fees?|charges?|amount|deposit)\b${g(60)}\b(?:jobs?|tasks?|work|start|join\w*|earn\w*|salary|position|offer\s+letter)\b`,
+          String.raw`\b(?:jobs?|tasks?|work|start|join\w*|position|offer\s+letter)\b${g(60)}\b(?:registration|joining|activation|security|onboarding|training|kit)\s*(?:fees?|charges?|amount|deposit)\b`,
+          String.raw`\b(?:prepaid|merchant|vip|premium|combo)\s+tasks?\b`,
+          String.raw`\b(?:deposit|invest|recharge|top\s*up|pay)\b${g(40)}\b(?:to\s+)?(?:unlock|withdraw|upgrade|continue|complete|release)\b${g(30)}\b(?:tasks?|commission|earnings?|profits?|level|vip|salary)\b`,
+        ],
+        hi: [
+          String.raw`(?:रजिस्ट्रेशन|जॉइनिंग|ज्वाइनिंग|सिक्योरिटी|पंजीकरण)\s*(?:फीस|शुल्क|चार्ज|डिपॉजिट)${g(60)}(?:नौकरी|जॉब|काम|टास्क)`,
+          String.raw`(?:नौकरी|जॉब|काम|टास्क)${g(60)}(?:रजिस्ट्रेशन|जॉइनिंग|ज्वाइनिंग|सिक्योरिटी|पंजीकरण)\s*(?:फीस|शुल्क|चार्ज|डिपॉजिट)`,
+        ],
+        ta: [
+          String.raw`(?:பதிவு|சேர்க்கை|பாதுகாப்பு)\s*(?:கட்டண|டெபாசிட)${g(60)}(?:வேலை|டாஸ்க|பணி)`,
+          String.raw`(?:வேலை|டாஸ்க|பணி)${g(60)}(?:பதிவு|சேர்க்கை|பாதுகாப்பு)\s*(?:கட்டண|டெபாசிட)`,
+        ],
+        hr: [String.raw`\b(?:registration|joining|security)\s*(?:fees?|charges?|shulk)\b${g(60)}\b(?:job|naukri|kaam|task)\b`],
+        tr: [String.raw`\b(?:registration|joining|security)\s*(?:fees?|charges?|kattanam)\b${g(60)}\b(?:job|velai|task)\b`],
       },
     },
 
@@ -499,9 +593,13 @@
       why: "Pressure to act right now is a common trick to stop you from thinking. Take a moment and check first.",
       patterns: {
         en: [String.raw`\b(?:immediately|urgent(?:ly)?|right\s+now|asap|within\s+(?:the\s+)?(?:next\s+)?\d+\s*(?:hours?|hrs?|minutes?|mins?|days?)|today\s+only|last\s+(?:chance|warning|date|day)|final\s+(?:notice|warning|reminder)|expires?\s+(?:today|soon|tonight)|act\s+now|hurry|without\s+delay|before\s+midnight)\b`],
-        hi: [String.raw`(?:तुरंत|जल्द\s*से\s*जल्द|आज\s*ही|अंतिम\s*(?:चेतावनी|मौका|तारीख)|\d+\s*(?:घंटे|घण्टे|मिनट|दिन)\s*(?:के\s*अंदर|में|के\s*भीतर)|फौरन|तत्काल|अभी\s*(?:के\s*अभी|ही))`],
+        hi: [String.raw`(?:तुरंत|जल्द\s*से\s*जल्द|आज\s*ही|अंतिम\s*(?:चेतावनी|मौका|तारीख)|\d+\s*(?:घंटे|घण्टे|मिनट|दिन)\s*(?:के\s*अंदर|में|के\s*भीतर)|फौरन|तत्काल|अभी\s*(?:के\s*अभी|ही)|ताबडतोब|लगेच|आजच)`],
         ta: [String.raw`(?:உடனடியாக|உடனே|இன்றே|இன்றுக்குள|கடைசி\s*(?:வாய்ப்பு|எச்சரிக்கை|நாள)|\d+\s*(?:மணி\s*நேரத்திற்குள|மணி\s*நேரத்துக்குள|நிமிடத்தில|நாட்களுக்குள)|அவசரம|விரைவில)`],
         hr: [String.raw`\b(?:turant|abhi\s+(?:ke\s+abhi|hi)|jaldi|aaj\s+hi|fauran|tatkal|antim\s+(?:chetavni|mauka)|\d+\s*(?:ghante|ghanta|minute|din)\s*(?:ke\s+andar|me|mein))\b`],
+        te: [String.raw`(?:వెంటనే|ఇప్పుడే|ఈరోజే|తక్షణమే)`],
+        bn: [String.raw`(?:এখনই|অবিলম্বে|আজই)`],
+        kn: [String.raw`(?:ತಕ್ಷಣ|ಈಗಲೇ|ಇಂದೇ|ಕೂಡಲೇ)`],
+        ml: [String.raw`(?:ഉടൻ|ഉടന്|ഉടനെ|ഇപ്പോൾ\s*തന്നെ|ഇന്ന്\s*തന്നെ)`],
         tr: [String.raw`\b(?:udane|udanadiya\w*|udanadiyaga|inniki|innaikku|kadaisi\s+(?:vaippu|naal)|avasaram|\d+\s*(?:mani\s*neratthukkul|mani\s+neratil|nimidam))\b`],
       },
     },
@@ -755,6 +853,7 @@
     Object.freeze({ id: "urgent_transfer", label: "Urgent money transfer request" }),
     Object.freeze({ id: "impersonation", label: "Bank or official impersonation" }),
     Object.freeze({ id: "payment_instruction", label: "Suspicious payment instructions" }),
+    Object.freeze({ id: "job_task", label: "Fake job, task or easy-money offer" }),
   ]);
 
   // ---------------------------------------------------------------- language detection (a best guess, never a certainty)
@@ -764,6 +863,10 @@
     ta: "Tamil",
     hinglish: "Hinglish (Hindi in English letters)",
     ta_roman: "Tamil in English letters",
+    te: "Telugu",
+    bn: "Bengali",
+    kn: "Kannada",
+    ml: "Malayalam",
     unknown: "Not enough text to tell",
   });
 
@@ -807,6 +910,7 @@
     maxHighlights: 30,
     maxLinks: 3, // addresses inside a message that are also checked by the URL checker
     shortTextLetters: 12, // below this many letters the result carries a "very short message" note
+    unsupportedMinLetters: 4, // a message is "in a language Prevenza cannot read" when it has at least this many such letters and they outnumber the rest
     minCategoryPoints: 3, // a scam category is named only when its signs add up to at least this
     minSecondaryPoints: 2,
     negateWindowBefore: 45,

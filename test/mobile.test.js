@@ -83,7 +83,7 @@ test("build: copies the app files with the same relative paths, with no second c
     "index.html", "web/index.html", "web/app/check.html", "web/app/emergency.html", "web/js/web-bridge.js", "web/js/check-page.js",
     "web/js/share-target.js", "src/shared/risk-engine.js", "src/shared/message-scan.js", "src/shared/url-intel.js", "src/shared/upi-analyze.js",
     "src/background/handler.js", "src/dashboard/dashboard.css", "src/dashboard/message-check.js", "src/dashboard/upi-check.js",
-    "src/dashboard/screenshot-check.js", "src/dashboard/ocr-runner.js", "src/emergency/emergency.js", "assets/icons/icon48.png",
+    "src/dashboard/screenshot-check.js", "src/dashboard/ocr-runner.js", "src/dashboard/qr-reader.js", "src/shared/qr-text.js", "vendor/jsqr/jsQR.js", "src/emergency/emergency.js", "assets/icons/icon48.png",
   ];
   for (const f of mustHave) assert.ok(fs.existsSync(path.join(OUT, f)), "mobile/www is missing " + f);
   assert.ok(fs.readdirSync(path.join(OUT, "vendor", "tesseract")).length > 0);
@@ -114,4 +114,31 @@ test("build: copies the app files with the same relative paths, with no second c
     }
   })(root);
   assert.deepEqual(found.sort(), ["src/background/handler.js", "src/shared/message-scan.js", "src/shared/risk-engine.js", "src/shared/url-intel.js"]);
+});
+
+// Step 12: the app opens the checker directly, and release signing never puts a key or password in the repository.
+test("capacitor config: the app starts on the checker page, with no redirect page in between", () => {
+  const cfg = JSON.parse(read("mobile", "capacitor.config.json"));
+  assert.equal(cfg.server.appStartPath, "/web/app/check.html");
+  assert.ok(fs.existsSync(path.join(root, "web", "app", "check.html")));
+});
+
+test("release signing reads the key from outside the repository, and no key or password is committed", () => {
+  const gradle = read("mobile", "android", "app", "build.gradle");
+  assert.match(gradle, /PREVENZA_KEYSTORE_PROPERTIES/);
+  assert.match(gradle, /\.prevenza-signing\/keystore\.properties/);
+  assert.match(gradle, /if \(signingProps\.getProperty\("storeFile"\)\)/, "without the file, release builds stay unsigned");
+  assert.doesNotMatch(gradle, /storePassword\s+["']|keyPassword\s+["']/, "no password written in the build file");
+  const ignore = read(".gitignore");
+  for (const rule of ["*.jks", "*.keystore", "keystore.properties"]) assert.ok(ignore.split(/\r?\n/).includes(rule), ".gitignore needs " + rule);
+  const found = [];
+  (function walk(dir) {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (["node_modules", ".git", "build", ".gradle"].includes(e.name)) continue;
+      const full = path.join(dir, e.name);
+      if (e.isDirectory()) walk(full);
+      else if (/\.(jks|keystore|p12)$|^keystore\.properties$/.test(e.name)) found.push(path.relative(root, full));
+    }
+  })(root);
+  assert.deepEqual(found, [], "signing files must not be inside the project");
 });
