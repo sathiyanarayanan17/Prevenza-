@@ -1,0 +1,3 @@
+# Third-party files must stay byte-for-byte identical to the published packages (test/qr.test.js checks this).
+# Never convert their line endings on checkout, whatever core.autocrlf is set to.
+vendor/** -text
